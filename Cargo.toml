@@ -3,4 +3,14 @@ name = "pqc-mainframe-db"
 version = "0.1.0"
 edition = "2024"
 
+[features]
+default = []
+pqc = ["dep:oqs"]
+
 [dependencies]
+tokio = { version = "1", features = ["macros", "rt-multi-thread", "sync", "time"] }
+oqs = { version = "0.10", optional = true }
+parquet = { version = "53", default-features = false, features = ["arrow", "snap", "zstd"] }
+serde = { version = "1", features = ["derive"] }
+byteorder = "1"
+thiserror = "2"
