@@ -1,16 +1,10 @@
 [package]
-name = "pqc-mainframe-db"
+name = "m2c-pipeline"
 version = "0.1.0"
 edition = "2024"
-
-[features]
-default = []
-pqc = ["dep:oqs"]
+authors = ["Anthony C. @01110100chony"]
+license = "Apache-2.0"
+description = "Experimental mainframe-to-cloud data pipeline in Rust"
 
 [dependencies]
-tokio = { version = "1", features = ["macros", "rt-multi-thread", "sync", "time"] }
-oqs = { version = "0.10", optional = true }
-parquet = { version = "53", default-features = false, features = ["arrow", "snap", "zstd"] }
-serde = { version = "1", features = ["derive"] }
-byteorder = "1"
-thiserror = "2"
+arrow-schema = "53"

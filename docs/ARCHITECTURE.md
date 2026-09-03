@@ -1,0 +1,139 @@
+# Arquitetura v0.1
+
+## Status e propósito
+
+Esta é a arquitetura congelada para a reconstrução do M2C Quantum-Safe Data Pipeline. O projeto é experimental, educacional e orientado a portfólio. A prioridade é demonstrar correctness, limites de memória, interoperabilidade de formatos e decisões de segurança justificadas; não construir uma plataforma enterprise.
+
+O escopo de implementação atual termina no M1, o compilador de copybook. As etapas posteriores descritas aqui estabelecem apenas os limites entre componentes e não afirmam que o pipeline completo já existe.
+
+## Forma do repositório
+
+O projeto permanece em **um único pacote Rust**, contendo:
+
+- uma biblioteca com tipos, parser, compilador e, futuramente, o pipeline;
+- uma CLI fina que chama a biblioteca;
+- testes unitários e golden fixtures pequenos e determinísticos.
+
+Não haverá workspace de serviços, sistema de plugins ou framework de providers nesta fase. APIs devem ser pequenas, explícitas e orientadas pelos casos de uso já definidos.
+
+## Fluxo de dados congelado
+
+```text
+COBOL copybook
+    -> normalização fixed-format
+    -> parser do subconjunto
+    -> AST mínima
+    -> CompiledCopybook
+
+arquivo binário fixed-record
+    -> source local
+    -> batches com memória limitada                 [M2+]
+    -> decoding orientado pelo layout compilado     [M2+]
+    -> Arrow RecordBatch                            [M2]
+    -> partes Parquet                               [M3]
+    -> proteção híbrida opcional                    [milestone posterior]
+    -> sink local primeiro; object storage depois   [milestone posterior]
+```
+
+O copybook é interpretado **uma única vez**. O resultado compilado resolve offsets, comprimentos físicos, encoding, signedness, precisão, escala, tipo lógico Arrow e tamanho total do registro. O hot path futuro recebe esse layout pronto e não volta a interpretar tokens, cláusulas ou strings PIC.
+
+## Componentes do M0/M1
+
+### `copybook`
+
+Responsável por:
+
+- normalizar linhas COBOL fixed-format;
+- identificar a posição original para diagnósticos;
+- tokenizar e fazer parsing apenas do subconjunto v0.1;
+- produzir uma AST mínima;
+- rejeitar explicitamente toda sintaxe ou cláusula fora do contrato.
+
+O contrato sintático e semântico completo está em [COPYBOOK_SUBSET.md](COPYBOOK_SUBSET.md).
+
+### `schema`
+
+Responsável por compilar a AST para `CompiledCopybook`:
+
+- calcular offsets determinísticos em ordem de declaração;
+- calcular byte lengths conforme o encoding físico;
+- resolver signedness, precision e scale;
+- resolver o tipo lógico Arrow;
+- calcular `record_length`;
+- gerar o Arrow Schema sem grupos e sem `FILLER`.
+
+Grupos organizam hierarquia, mas não consomem bytes por conta própria. Somente campos elementares contribuem para o layout físico. Um `FILLER` elementar contribui normalmente para offsets e `record_length`, embora seja omitido do schema público.
+
+### `error`
+
+Responsável por erros tipados. Erros de copybook devem informar, no mínimo, linha, coluna e causa. Entradas inválidas, cláusulas não suportadas e overflow de cálculos devem retornar erro; não podem causar panic.
+
+### `cli`
+
+Permanece uma camada fina sobre a biblioteca. No M1, o binário é apenas um placeholder honesto; comandos funcionais entram com a conversão local no M3. A API de biblioteca já permite inspecionar/compilar um copybook, e conversão de arquivo binário não faz parte desta etapa.
+
+## Componentes posteriores já delimitados
+
+Estes componentes não pertencem ao M0/M1:
+
+- `codec`: CP037, DISPLAY, COMP/BINARY big-endian e COMP-3;
+- `source`: leitura local fixed-record e formação de batches limitados;
+- `decode`: builders Arrow e produção de `RecordBatch`;
+- `parquet_io`: escrita incremental de partes Parquet;
+- `pipeline`: orquestração, limites e lifecycle de artefatos;
+- `sink`: filesystem local primeiro, object storage opcional depois;
+- `crypto`: envelope versionado com AEAD para bulk data e ML-KEM para chaves;
+- `telemetry`: logs estruturados e estatísticas reproduzíveis.
+
+Sua enumeração registra fronteiras futuras e evita acoplamento no M1; não autoriza implementá-los antecipadamente.
+
+## Invariantes de correctness
+
+1. Um copybook válido é compilado uma vez para uma estrutura imutável e autocontida.
+2. A soma dos byte lengths dos campos elementares, incluindo `FILLER`, determina `record_length`.
+3. Offsets são contíguos, determinísticos e não se sobrepõem.
+4. Grupos não acrescentam bytes além dos seus filhos.
+5. `FILLER` nunca aparece no Arrow Schema.
+6. O tamanho físico de COMP/BINARY segue a regra IBM definida para o subset, não uma aproximação genérica baseada em bits ou caracteres.
+7. `V` é um ponto decimal implícito: afeta precisão, escala e tipo lógico, mas não ocupa byte.
+8. Toda cláusula desconhecida ou não suportada falha explicitamente.
+9. Nenhuma entrada inválida deve causar panic.
+10. Correctness e simplicidade prevalecem sobre alegações de zero-copy.
+
+## Execução e memória
+
+O M1 não processa datasets. A partir do M2, o source local produzirá batches limitados por configuração, e o pipeline escreverá partes Parquet incrementalmente. O arquivo inteiro não deve ser materializado em memória. A execução inicial será síncrona; concorrência só poderá ser introduzida com evidência de benchmark e sem alterar os contratos centrais.
+
+## Segurança e cloud
+
+PQC é uma decisão experimental posterior. Quando implementada, a proteção usará uma cifra AEAD para o conteúdo e ML-KEM somente para estabelecimento/proteção de chaves; nenhuma primitiva criptográfica será implementada pelo projeto. O formato e o threat model exigirão documentação própria antes do código.
+
+O primeiro sink funcional será o filesystem local. Integrações cloud serão adaptadores opcionais depois que o pipeline local estiver correto, testado e demonstrável. O mainframe é a origem lógica dos formatos, não uma dependência de infraestrutura: nenhum IBM Z real é necessário.
+
+## Non-goals da arquitetura v0.1
+
+Não fazem parte do trabalho atual:
+
+- PQC ou qualquer criptografia de payload;
+- Azure, outro cloud provider ou object storage;
+- Tokio, canais `mpsc` ou pipeline assíncrono;
+- Prometheus, Grafana ou AIOps;
+- checkpoints e resume;
+- ROOT ou integrações externas de análise;
+- UI;
+- Kubernetes ou microservices;
+- HSM/KMS real;
+- database ou SQL engine;
+- registros variáveis, múltiplos layouts ou COBOL completo.
+
+Também não são objetivos futuros: distributed consensus, reimplementação de primitivas criptográficas ou competição com ferramentas IBM.
+
+## Critério de conclusão do M1
+
+M1 termina quando fixtures golden comprovarem, de forma determinística:
+
+```text
+copybook -> AST -> CompiledCopybook
+```
+
+incluindo `record_length`, offsets, byte lengths, physical encodings, signedness, precision/scale e Arrow Schema, além de diagnósticos explícitos para construções não suportadas. M2 não começa como parte desse trabalho.

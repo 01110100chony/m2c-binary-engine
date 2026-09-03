@@ -1,101 +1,102 @@
-# M2C Binary ETL Engine
+# M2C Quantum-Safe Data Pipeline
 
-**Mainframe-to-Cloud Binary ETL Engine with Post-Quantum Security and AIOps Integration**
+Pipeline experimental, escrito principalmente em Rust, para estudar a conversão de dados binários legados de mainframe em dados colunares tipados:
 
-> A systems engineering project built in Rust, tackling one of the most critical and underexplored challenges in modern financial infrastructure: moving massive volumes of binary Mainframe data to the cloud, in real time, with integrity, and with security architecture designed for the next decade of threats.
+```text
+arquivo binário fixed-record + COBOL copybook
+    -> layout compilado
+    -> decoding tipado
+    -> Arrow / Parquet
+    -> proteção quantum-safe opcional
+    -> sink local ou cloud
+```
 
----
+## Status
 
-## Project Status
+Este é um projeto educacional e de portfólio, mantido por um estudante de Engenharia da Computação. A arquitetura v0.1 está congelada. **M0 (fundação do repositório) e M1 (compilador de copybook) estão concluídos; M2 não foi iniciado.**
 
-This is an active portfolio project. Core binary parsing, endianness handling, and PQC integration are implemented. AIOps telemetry pipeline and cloud sink connectors are in progress.
+O projeto ainda **não** oferece um pipeline end-to-end. Decoding de registros, escrita Arrow/Parquet, criptografia pós-quântica, cloud, checkpoints e observabilidade operacional pertencem a milestones posteriores. O software não deve ser usado para dados sensíveis ou cargas de produção.
 
-Contributions, issues, and technical feedback are welcome.
+## Objetivo da fase atual
 
----
+O M1 transforma um copybook do subconjunto documentado em uma representação compilada, sem reinterpretar COBOL no futuro hot path de decoding:
 
-## The Problem Worth Solving
+```text
+sample.cpy
+    -> normalização fixed-format
+    -> parser
+    -> AST mínima
+    -> CompiledCopybook
+         - record length
+         - field offsets e byte lengths
+         - physical encodings e signedness
+         - precision e scale
+         - logical Arrow types
+         - Arrow Schema
+```
 
-Most financial institutions still run their core operations on IBM z/OS Mainframes. Not out of inertia, but because these systems genuinely deliver a level of reliability and transaction throughput that modern platforms have yet to replicate at scale. The Mainframe is not going away. What is changing is the expectation around what banks can do with that data, and how fast .
+O subconjunto aceito é intencionalmente pequeno. Sintaxe fora dele deve produzir um diagnóstico explícito com localização, nunca ser ignorada silenciosamente. Consulte [COPYBOOK_SUBSET.md](docs/COPYBOOK_SUBSET.md) para o contrato completo.
 
-The gap between Mainframe-generated data and cloud-based analytics is wide, expensive, and increasingly dangerous to ignore. Three forces are converging to make this problem urgent:
+## Arquitetura v0.1
 
-**Processing cost.** EBCDIC-to-ASCII translation, COMP-3 packed decimal decoding, and copybook parsing are routinely performed on the Mainframe itself — consuming MIPS that are billed at significant cost. Every CPU cycle that can be offloaded represents direct financial savings.
+O repositório usa um único pacote Rust com biblioteca e CLI. O fluxo local planejado é:
 
-**Encryption vulnerability.** RSA and ECC, the cryptographic standards protecting financial data in transit today, are known to be theoretically vulnerable to sufficiently powerful quantum computers. The threat is not immediate, but the attack vector is real: adversaries are already harvesting encrypted traffic today with the intent to decrypt it once quantum capability matures. "Harvest Now, Decrypt Later" is not a hypothetical , it is an active threat model documented by intelligence agencies and financial regulators.
+1. interpretar e compilar o copybook uma única vez;
+2. ler um arquivo binário de registros de tamanho fixo;
+3. em M2, implementar codecs e decodificar dados para Arrow;
+4. em M3, processar batches com memória limitada e escrever partes Parquet no filesystem local;
+5. em milestones posteriores, adicionar robustez operacional e proteção híbrida AEAD + ML-KEM;
+6. somente depois da demonstração local, considerar um sink de object storage.
 
-**Operational opacity.** Hybrid pipelines between Mainframe and cloud environments are notoriously difficult to monitor. When something degrades or breaks, the mean time to detection is high, and the mean time to root cause is higher. Predictive observability in this layer is essentially nonexistent in most institutions.
+A descrição dos limites e invariantes está em [ARCHITECTURE.md](docs/ARCHITECTURE.md). A análise que motivou a reconstrução permanece em [ANALISE_DO_PROJETO.md](docs/ANALISE_DO_PROJETO.md).
 
-This project was built to confront all three.
+## Mapeamento lógico congelado
 
----
-
-## What This Engine Does
-
-The M2C Binary ETL Engine is a high-performance data pipeline written in Rust, designed to extract binary data from z/OS Mainframe environments, transform it in-flight, and deliver it to cloud storage with quantum-resistant encryption — while exporting rich telemetry for AI-driven operational monitoring.
-
-It is not a proof-of-concept wrapper around existing tooling. The transformation logic, binary parsing, and security layer are implemented from the ground up, with the performance and correctness guarantees that Rust's memory model enables.
-
----
-
-## Architecture
-
-### Ingestion Layer
-
-Data enters the engine through high-speed connectors or local agents deployed at the Mainframe boundary. The interface is designed to handle the specific quirks of z/OS data: variable-length records, multi-segment copybooks, and the endianness mismatch between Big-Endian Mainframe and Little-Endian cloud targets.
-
-### Transformation Core (Rust)
-
-This is where the majority of the engineering work lives.
-
-Binary parsing is performed with zero-copy reads where possible, avoiding the allocation overhead that makes naive implementations fall apart at scale. EBCDIC-to-UTF-8 translation, COMP-3 packed decimal decoding, and copybook-driven schema inference are handled natively, producing structured output in columnar formats — specifically Apache Parquet — ready for direct consumption by analytical engines.
-
-Endianness conversion is handled deterministically, with explicit handling for the Big-Endian-to-Little-Endian boundary that causes silent data corruption in less careful implementations.
-
-### Post-Quantum Security Layer
-
-Encryption is not bolted on at the end of the pipeline — it is part of the transformation step itself.
-
-The engine integrates [liboqs](https://github.com/open-quantum-safe/liboqs) to implement **ML-KEM (Kyber)**, one of the algorithms standardized by NIST in its Post-Quantum Cryptography project (FIPS 203). Data is encrypted before it leaves the transformation core, meaning it arrives at the cloud landing zone already protected against both classical and quantum adversaries.
-
-This design choice directly addresses the "Harvest Now, Decrypt Later" threat vector — a concern that is increasingly appearing in financial regulatory guidance and internal security reviews at major institutions.
-
-### Data Sink
-
-Structured, encrypted data lands in Azure Blob Storage or Azure Data Lake, partitioned and formatted for immediate analytical access. The schema is preserved from the copybook definition, meaning downstream consumers do not need knowledge of the original Mainframe data layout.
-
-### Monitoring and AIOps Integration
-
-The engine emits detailed telemetry at every stage of the pipeline: ingestion throughput, transformation latency, encryption overhead, and sink write performance. These metrics are exported via Prometheus and visualized in Grafana.
-
-Beyond passive monitoring, the telemetry feed is designed for integration with AI-driven anomaly detection. Unusual patterns in binary data streams — unexpected record length distributions, throughput drops, encoding anomalies — can indicate hardware degradation on the Mainframe side or, more critically, data exfiltration attempts. AIOps agents consuming this feed can surface predictive signals before they manifest as incidents.
-
----
-
-## Technical Stack
-
-| Layer | Technology |
+| Campo COBOL | Tipo lógico Arrow |
 |---|---|
-| Core Engine | Rust (stable) |
-| Binary Parsing | Custom copybook parser — EBCDIC, COMP-3, packed decimals |
-| Output Format | Apache Parquet |
-| Quantum-Safe Cryptography | liboqs — ML-KEM / Kyber (NIST FIPS 203) |
-| Cloud Target | Azure Blob Storage / Azure Data Lake Gen2 |
-| Observability | Prometheus + Grafana |
-| AIOps Integration | Prometheus remote-write to AI monitoring pipeline |
+| `PIC X...` | `Utf8` |
+| DISPLAY inteiro | `Int64` |
+| DISPLAY com escala implícita `V` | `Decimal128` |
+| COMP/BINARY sem escala | `Int64` |
+| COMP/BINARY com escala implícita `V` | `Decimal128` |
+| COMP-3/PACKED-DECIMAL | `Decimal128` |
 
----
+`FILLER` ocupa bytes e participa dos offsets e do tamanho do registro, mas não é exposto no Arrow Schema.
 
-## Strategic Context
+## Verificação de desenvolvimento
 
-The intersection of Mainframe modernization, quantum-readiness, and AIOps is not a niche corner of the industry; it is where some of the most significant engineering investment in global banking is currently concentrated. Regulators in multiple jurisdictions have begun issuing guidance on quantum risk in financial services. Cloud migration from core banking systems is accelerating. And the operational complexity of hybrid environments is pushing institutions toward AI-driven infrastructure management. Eventually, it is the most efficient step we should have to modernize the financial system.
+```bash
+cargo fmt --check
+cargo clippy --all-targets --all-features -- -D warnings
+cargo test --all-targets
+```
 
-This project was built at that intersection, not as a theoretical exercise, but as a working implementation of what that future looks like in code.
+Os testes do M1 usam fixtures pequenas e determinísticas para validar AST, layout compilado, offsets, tamanho do registro, tipos e rejeição de construções não suportadas. Datasets públicos e sintéticos maiores serão introduzidos apenas quando o pipeline de decoding existir.
 
-## References
+A API de entrada do milestone é `parse_and_compile_copybook(&str)`. Para inspecionar separadamente as duas etapas, use `parse_copybook(&str)` seguido de `compile_copybook(&CopybookAst)`.
 
-- [NIST FIPS 203 — ML-KEM Standard](https://csrc.nist.gov/pubs/fips/203/final)
-- [Open Quantum Safe — liboqs](https://openquantumsafe.org/)
-- [Apache Parquet Format Specification](https://parquet.apache.org/docs/file-format/)
-- [IBM z/OS Data Formats — EBCDIC and COMP-3](https://www.ibm.com/docs/en/zos)
-- [Azure Data Lake Storage Gen2](https://learn.microsoft.com/en-us/azure/storage/blobs/data-lake-storage-introduction)
+## Roadmap
+
+- **M0 — fundação:** status e documentação honestos, módulos e contratos compatíveis com a arquitetura v0.1, CI local limpo.
+- **M1 — copybook compiler:** normalização fixed-format, parser do subconjunto, AST mínima, layout compilado, Arrow Schema e diagnósticos.
+- **M2 — codecs e Arrow:** CP037, DISPLAY, COMP/BINARY, COMP-3 e produção de `RecordBatch` tipado.
+- **M3 — Core MVP local:** source fixed-record, batches com memória limitada, CLI de conversão e escrita/validação de Parquet local.
+- **M4 — robustez e recuperação:** partes determinísticas, manifest, atomic commit, fault injection e retomada.
+- **M5 — proteção PQC experimental:** AEAD para o payload e ML-KEM para estabelecimento/proteção de chaves, com suites versionadas.
+- **M6 — evidência técnica e demo:** observabilidade local, fuzzing ampliado, benchmarks reproduzíveis e demonstração documentada.
+- **M7 — extensões opcionais:** sink de object storage/cloud, ML-DSA e novos formatos apenas depois da versão de portfólio local.
+
+O projeto não pretende implementar COBOL completo, substituir ferramentas IBM, criar um database engine ou oferecer infraestrutura enterprise.
+
+## Documentação
+
+- [Arquitetura v0.1](docs/ARCHITECTURE.md)
+- [Subconjunto COBOL Copybook v0.1](docs/COPYBOOK_SUBSET.md)
+- [Análise inicial do projeto](docs/ANALISE_DO_PROJETO.md)
+
+## Referências
+
+- [Apache Arrow](https://arrow.apache.org/)
+- [Apache Parquet](https://parquet.apache.org/)
+- [NIST FIPS 203 — ML-KEM](https://csrc.nist.gov/pubs/fips/203/final)
+- [IBM Enterprise COBOL documentation](https://www.ibm.com/docs/en/cobol-zos)
