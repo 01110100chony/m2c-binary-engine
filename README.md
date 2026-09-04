@@ -15,7 +15,7 @@ arquivo binário fixed-record + COBOL copybook
 
 Este é um projeto educacional e de portfólio, mantido por um estudante de Engenharia da Computação. A arquitetura v0.1 está congelada. **M0 (fundação), M1 (compilador de copybook), M2 (codecs e Arrow RecordBatch) e M3 (conversão local para Parquet) estão implementados.**
 
-O projeto oferece conversão local síncrona de um arquivo fixed-record para um arquivo Parquet, em batches limitados, pela biblioteca e pela CLI. Criptografia pós-quântica, cloud, checkpoints e observabilidade operacional pertencem a milestones posteriores. O software não deve ser usado para dados sensíveis ou cargas de produção.
+O projeto oferece conversão local síncrona de um arquivo fixed-record para Parquet, em batches limitados, pela biblioteca e pela CLI. O M4 acrescenta saída em partes determinísticas com manifest e retomada após interrupção do processo, preservando a conversão de saída única M3. Criptografia pós-quântica, cloud e observabilidade operacional pertencem a milestones posteriores. O software não deve ser usado para dados sensíveis ou cargas de produção.
 
 ## Objetivo da fase atual
 
@@ -45,8 +45,9 @@ O repositório usa um único pacote Rust com biblioteca e CLI. O fluxo é:
 2. em M3, ler um arquivo binário de registros de tamanho fixo em batches limitados;
 3. usar os codecs M2 para decodificar cada batch para Arrow;
 4. em M3, escrever incrementalmente row groups em um único arquivo Parquet local;
-5. em milestones posteriores, adicionar robustez operacional e proteção híbrida AEAD + ML-KEM;
-6. somente depois da demonstração local, considerar um sink de object storage.
+5. em M4, oferecer partes locais, recibos imutáveis de commit e retomada explícita;
+6. em milestones posteriores, adicionar proteção híbrida AEAD + ML-KEM;
+7. somente depois da demonstração local, considerar um sink de object storage.
 
 A descrição dos limites e invariantes está em [ARCHITECTURE.md](docs/ARCHITECTURE.md). A análise que motivou a reconstrução permanece em [ANALISE_DO_PROJETO.md](docs/ANALISE_DO_PROJETO.md).
 
@@ -68,6 +69,7 @@ A descrição dos limites e invariantes está em [ARCHITECTURE.md](docs/ARCHITEC
 ```bash
 cargo fmt --all -- --check
 cargo clippy --all-targets --all-features -- -D warnings
+cargo test --all-targets
 cargo test --all-targets --all-features
 cargo test --doc
 ```
@@ -129,6 +131,44 @@ não há atomic commit, manifest, retry ou retomada. O teste `local_conversion`
 executa a CLI sobre a fixture conhecida com batch de dois registros, reabre a
 saída e compara schema e valores com constantes independentes do decoder.
 
+## Conversão recuperável M4
+
+```bash
+cargo run -- convert-parts --copybook tests/fixtures/sample_fixed.cpy --input tests/fixtures/sample_fixed.bin --output-dir sample-parts --batch-records 2
+cargo run -- convert-parts --copybook tests/fixtures/sample_fixed.cpy --input tests/fixtures/sample_fixed.bin --output-dir sample-parts --batch-records 2 --resume
+```
+
+Os quatro argumentos são obrigatórios em ambos os modos. Sem `--resume`, o
+diretório de saída deve ser novo, com pai existente; com a flag, deve existir.
+Um batch corresponde a uma parte Parquet, com nomes e intervalos determinísticos.
+O exemplo produz duas partes (2 + 1 registros). Entrada vazia produz uma parte
+com schema e zero linhas.
+
+A biblioteca expõe `convert_parts(&CompiledCopybook, &Path, &Path, usize,
+RecoveryMode) -> Result<(), RecoveryError>`, com modos `Create` e `Resume`.
+`manifest.json` identifica a conversão; cada parte publicada recebe um recibo
+imutável em `commits/`; `complete.json` marca a conclusão. Um Parquet sem recibo
+é órfão, não um commit. Resume valida entrada, layout, configuração e todos os
+confirmados antes de limpar staging ou regenerar o próximo órfão.
+
+A identidade SHA-256 usa o conteúdo integral da entrada e o layout/schema
+canônico. Entrada idêntica em outro caminho pode retomar; entrada alterada,
+layout diferente ou outro tamanho de batch exige novo destino. Partes confirmadas
+ausentes ou corrompidas causam erro e nunca são regeneradas automaticamente.
+Uma retomada concluída revalida o resultado sem reescrever partes confirmadas.
+
+O alvo inicial é Windows/MSVC com NTFS local e Rust 1.89 ou superior. Um lock de
+arquivo impede invocações M4 simultâneas no mesmo destino. Staging e publicação
+permanecem no mesmo filesystem; a garantia cobre falha do processo, sem prometer
+durabilidade após queda de energia ou falha do sistema operacional. A entrada e
+o diretório administrado devem permanecer imutáveis para outros programas durante
+cada invocação. Hashes conferem identidade/integridade e não protegem o payload.
+
+O [contrato M4](docs/M4_RECOVERY.md) define formato, bootstrap, recuperação,
+invariantes, fault injection, critérios de aceite e limitações. Dados e hashing
+usam memória limitada; artefatos e metadados em disco crescem com a quantidade de
+partes. A validação da retomada relê entrada e partes confirmadas.
+
 ## Roadmap
 
 - **M0 — fundação:** status e documentação honestos, módulos e contratos compatíveis com a arquitetura v0.1, CI local limpo.
@@ -147,6 +187,7 @@ O projeto não pretende implementar COBOL completo, substituir ferramentas IBM, 
 - [Arquitetura v0.1](docs/ARCHITECTURE.md)
 - [Subconjunto COBOL Copybook v0.1](docs/COPYBOOK_SUBSET.md)
 - [Decoding de registros M2](docs/DECODING.md)
+- [Recuperação local M4](docs/M4_RECOVERY.md)
 - [Análise inicial do projeto](docs/ANALISE_DO_PROJETO.md)
 
 ## Referências

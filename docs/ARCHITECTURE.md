@@ -4,13 +4,16 @@
 
 Esta é a arquitetura congelada para a reconstrução do M2C Quantum-Safe Data Pipeline. O projeto é experimental, educacional e orientado a portfólio. A prioridade é demonstrar correctness, limites de memória, interoperabilidade de formatos e decisões de segurança justificadas; não construir uma plataforma enterprise.
 
-O escopo de implementação atual termina no M3: compilador de copybook, codecs, decoding de batches para Arrow e conversão local síncrona para Parquet. As etapas posteriores estabelecem apenas limites entre componentes e não afirmam que recuperação, proteção ou cloud já existem.
+O escopo de implementação atual inclui M4: compilador de copybook, codecs,
+decoding de batches para Arrow, conversão local síncrona para Parquet e conversão
+recuperável em partes. A API de saída única M3 mantém seu contrato. Proteção e
+cloud continuam etapas posteriores, com limites definidos mas sem implementação.
 
 ## Forma do repositório
 
 O projeto permanece em **um único pacote Rust**, contendo:
 
-- uma biblioteca com tipos, parser, compilador e, futuramente, o pipeline;
+- uma biblioteca com tipos, parser, compilador e pipeline local;
 - uma CLI fina que chama a biblioteca;
 - testes unitários e golden fixtures pequenos e determinísticos.
 
@@ -31,6 +34,7 @@ arquivo binário fixed-record
     -> decoding orientado pelo layout compilado     [M2]
     -> Arrow RecordBatch                            [M2]
     -> row groups em um arquivo Parquet local        [M3]
+       ou partes + manifest + retomada local         [M4]
     -> proteção híbrida opcional                    [milestone posterior]
     -> adaptadores opcionais de destino             [milestone posterior]
 ```
@@ -72,6 +76,10 @@ Responsável por erros tipados. Erros de copybook devem informar, no mínimo, li
 
 Permanece uma camada fina sobre a biblioteca. No M3, `convert` recebe caminhos de copybook, entrada e saída e um limite positivo de registros por batch. Compila o copybook uma vez e chama a conversão local. A API de inspeção/compilação M1 permanece preservada.
 
+No M4, `convert-parts` recebe copybook, entrada, diretório de saída e limite de
+batch, com `--resume` opcional. Chama `convert_parts` com `RecoveryMode::Create`
+ou `RecoveryMode::Resume`. Não expõe controles de fault injection.
+
 ## Componentes do M2
 
 - `codec`: funções internas para CP037, DISPLAY, COMP/BINARY big-endian e COMP-3; retornam texto ou inteiros sem escala aplicada, nunca ponto flutuante.
@@ -91,7 +99,7 @@ Os caminhos da API são entrada e saída, respectivamente. A configuração de C
 usa apenas `args_os`, sem arquivo de configuração nem framework de providers.
 O contrato mínimo M3 concretiza a escrita incremental anteriormente descrita
 como partes em um único arquivo Parquet; particionamento e lifecycle recuperável
-de artefatos permanecem para M4.
+de artefatos pertencem à API adicional M4.
 
 Entrada vazia preserva schema com zero linhas. Layouts somente FILLER recebem
 erro explícito antes da criação da saída; o contrato M1/M2 para esses layouts
@@ -101,14 +109,51 @@ erros de decoding acrescentam o offset do batch no arquivo e traduzem o índice
 do registro para o índice global, preservando o offset de byte relativo, campo,
 span e causa M2. A CLI informa o erro em stderr e retorna status não zero.
 
-Um destino existente nunca é sobrescrito. Falhas podem deixar arquivos parciais;
+Na API M3, um destino existente nunca é sobrescrito. Falhas podem deixar arquivos parciais;
 não há transação, remoção automática, manifest, retry, checkpoint ou retomada.
 A validação de saída ocorre por reabertura em testes, sem uma segunda passagem
 obrigatória em runtime.
 
+## Componentes do M4
+
+- `manifest`: documentos JSON tipados, identidade por SHA-256, intervalos de partes
+  e validação de descritor, recibos e conclusão.
+- `recovery`: `convert_parts(&CompiledCopybook, &Path, &Path, usize, RecoveryMode)`
+  retorna `Result<(), RecoveryError>`; administra lock local, staging, publicação,
+  prefixo confirmado e retomada. Hooks de falha permanecem internos aos testes.
+- `parquet_io`: compartilha a construção do writer com M3; M4 retém o arquivo para
+  finalizar, sincronizar e fechar antes de publicar cada parte.
+
+Os módulos permanecem internos. São exportados somente a nova conversão, modo e
+erro. Source e decoder são reutilizados sem mudança semântica. O copybook é
+compilado uma vez e um único decoder é validado/reutilizado por invocação.
+
+Uma parte corresponde a um batch, com identidade e intervalo determinísticos.
+O manifest combina descritor imutável, um recibo imutável por parte e marcador de
+conclusão. Staging é finalizado, sincronizado e publicado no mesmo filesystem;
+a parte precede seu recibo. Somente o recibo válido, dentro de um prefixo sem
+lacunas e com parte íntegra, autoriza avanço de cursor. A retomada valida todo o
+prefixo antes de apagar temporários ou regenerar o próximo órfão. Confirmados
+ausentes/corrompidos causam erro, sem rollback nem regeneração automática.
+
+Identidade inclui conteúdo integral da entrada, layout físico, schema Arrow e
+batch configurado. Spans e formatação do copybook não integram a identidade.
+Schema, valores e diagnósticos M2/M3 são preservados, incluindo índices globais
+de registro após o seek de retomada. Entrada vazia produz uma parte vazia com schema.
+
+`File::try_lock` exclui invocações simultâneas no mesmo diretório. A garantia
+inicial cobre falha do processo sobre Windows/MSVC e NTFS local, com filesystem
+operacional e sem escritores externos. `sync_all` dos arquivos não oferece
+durabilidade dos renames após perda de energia: não há sincronização portátil
+de diretórios. Não há transação conjunta de parte/recibo, retry automático,
+coordenação distribuída nem promessa de recuperação em rede/cloud.
+
+O contrato completo, inclusive bootstrap interrompido e validação de namespace,
+está em [M4_RECOVERY.md](M4_RECOVERY.md).
+
 ## Componentes posteriores já delimitados
 
-Estes componentes não pertencem ao M0/M1/M2/M3:
+Estes componentes não pertencem ao M0/M1/M2/M3/M4:
 
 - `sink`: adaptadores de destino e object storage opcional; M3 escreve diretamente no filesystem local;
 - `crypto`: envelope versionado com AEAD para bulk data e ML-KEM para chaves;
@@ -133,6 +178,12 @@ Sua enumeração registra fronteiras futuras; não autoriza implementá-los ante
 
 O M1 não processa datasets. O M2 recebe um batch em memória, limitado pelo chamador, e não lê arquivos nem retém registros entre chamadas. A memória adicional corresponde às colunas Arrow e a uma string temporária reutilizada. No M3, o source local produz batches limitados por configuração e o pipeline escreve e descarrega cada row group antes de ler o próximo batch. Os dados do arquivo inteiro não são materializados em memória; o footer Parquet mantém metadados proporcionais ao número de row groups. A execução é síncrona; concorrência só poderá ser introduzida com evidência de benchmark e sem alterar os contratos centrais.
 
+No M4, cada parte finaliza seu próprio footer e os hashes são calculados por
+streaming. A retomada valida recibos individualmente, sem reter batches ou lista
+de registros. O número de artefatos e metadados em disco cresce com as partes.
+A entrada é relida integralmente para identidade e as partes confirmadas para
+integridade; esse custo é deliberado no contrato M4.
+
 ## Segurança e cloud
 
 PQC é uma decisão experimental posterior. Quando implementada, a proteção usará uma cifra AEAD para o conteúdo e ML-KEM somente para estabelecimento/proteção de chaves; nenhuma primitiva criptográfica será implementada pelo projeto. O formato e o threat model exigirão documentação própria antes do código.
@@ -147,7 +198,6 @@ Não fazem parte do trabalho atual:
 - Azure, outro cloud provider ou object storage;
 - Tokio, canais `mpsc` ou pipeline assíncrono;
 - Prometheus, Grafana ou AIOps;
-- checkpoints e resume;
 - ROOT ou integrações externas de análise;
 - UI;
 - Kubernetes ou microservices;
@@ -181,3 +231,18 @@ ao menos uma fronteira de batch, comprovando processamento em batches limitados.
 O teste usa três registros conhecidos, batch de dois e dois row groups (2 + 1).
 Toda a suíte M0–M2, os testes M3 e doctests devem passar, junto de formatação e
 Clippy sem warnings. M4 não começa como parte desse trabalho.
+
+## Critério de conclusão do M4
+
+A fixture independente de três registros de 35 bytes deve produzir duas partes
+(2 + 1) com batch de dois e três partes com batch de um. Reabertura e concatenação
+devem preservar schema e valores exatos. Interrupções de processo e erros de I/O
+nas fronteiras de staging, finalização, sync, publicação, commit, limpeza e
+conclusão devem retomar sem perdas, duplicação, reordenação ou reescrita de partes
+confirmadas. Identidades incompatíveis, corrupção e estados inconsistentes devem
+falhar explicitamente antes de limpeza/progresso. Entrada vazia, retomada concluída,
+diagnósticos globais e exclusão mútua fazem parte do aceite.
+
+A matriz de testes e os gates completos estão em [M4_RECOVERY.md](M4_RECOVERY.md).
+Toda a suíte M0–M3, os testes M4 e doctests devem passar, junto de formatação e
+Clippy sem warnings. M5 não começa como parte desse trabalho.
