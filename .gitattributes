@@ -1,0 +1,3 @@
+# Preserve the exact bytes and documented checksums of M2 reference fixtures.
+tests/fixtures/*.bin binary
+tests/fixtures/CP037.TXT -text

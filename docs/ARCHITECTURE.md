@@ -4,7 +4,7 @@
 
 Esta é a arquitetura congelada para a reconstrução do M2C Quantum-Safe Data Pipeline. O projeto é experimental, educacional e orientado a portfólio. A prioridade é demonstrar correctness, limites de memória, interoperabilidade de formatos e decisões de segurança justificadas; não construir uma plataforma enterprise.
 
-O escopo de implementação atual termina no M1, o compilador de copybook. As etapas posteriores descritas aqui estabelecem apenas os limites entre componentes e não afirmam que o pipeline completo já existe.
+O escopo de implementação atual termina no M2: compilador de copybook, codecs e decoding de batches para Arrow. As etapas posteriores descritas aqui estabelecem apenas os limites entre componentes e não afirmam que o pipeline de arquivos completo já existe.
 
 ## Forma do repositório
 
@@ -26,16 +26,16 @@ COBOL copybook
     -> CompiledCopybook
 
 arquivo binário fixed-record
-    -> source local
-    -> batches com memória limitada                 [M2+]
-    -> decoding orientado pelo layout compilado     [M2+]
+    -> source local                                 [M3]
+    -> batches com memória limitada                 [M3]
+    -> decoding orientado pelo layout compilado     [M2]
     -> Arrow RecordBatch                            [M2]
     -> partes Parquet                               [M3]
     -> proteção híbrida opcional                    [milestone posterior]
     -> sink local primeiro; object storage depois   [milestone posterior]
 ```
 
-O copybook é interpretado **uma única vez**. O resultado compilado resolve offsets, comprimentos físicos, encoding, signedness, precisão, escala, tipo lógico Arrow e tamanho total do registro. O hot path futuro recebe esse layout pronto e não volta a interpretar tokens, cláusulas ou strings PIC.
+O copybook é interpretado **uma única vez**. O resultado compilado resolve offsets, comprimentos físicos, encoding, signedness, precisão, escala, tipo lógico Arrow e tamanho total do registro. O hot path recebe esse layout pronto e não volta a interpretar tokens, cláusulas ou strings PIC.
 
 ## Componentes do M0/M1
 
@@ -72,20 +72,26 @@ Responsável por erros tipados. Erros de copybook devem informar, no mínimo, li
 
 Permanece uma camada fina sobre a biblioteca. No M1, o binário é apenas um placeholder honesto; comandos funcionais entram com a conversão local no M3. A API de biblioteca já permite inspecionar/compilar um copybook, e conversão de arquivo binário não faz parte desta etapa.
 
+## Componentes do M2
+
+- `codec`: funções internas para CP037, DISPLAY, COMP/BINARY big-endian e COMP-3; retornam texto ou inteiros sem escala aplicada, nunca ponto flutuante.
+- `decode`: `RecordDecoder` empresta o `CompiledCopybook`, valida seus campos públicos uma vez e produz `RecordBatch` com builders Arrow. Não há uma segunda AST ou arquitetura de layouts.
+- `error`: também contém `DecodeError`, suas causas tipadas e contexto de registro/campo, offset no batch e localização original no copybook.
+
+Cada chamada recebe bytes de registros concatenados, possui builders próprios e retorna um batch completo ou o primeiro erro. O schema compilado é preservado, inclusive nomes e não nulabilidade. FILLER mantém offsets sem produzir valores. O [contrato M2](DECODING.md) detalha validação, sinais e capacidade.
+
 ## Componentes posteriores já delimitados
 
-Estes componentes não pertencem ao M0/M1:
+Estes componentes não pertencem ao M0/M1/M2:
 
-- `codec`: CP037, DISPLAY, COMP/BINARY big-endian e COMP-3;
 - `source`: leitura local fixed-record e formação de batches limitados;
-- `decode`: builders Arrow e produção de `RecordBatch`;
 - `parquet_io`: escrita incremental de partes Parquet;
 - `pipeline`: orquestração, limites e lifecycle de artefatos;
 - `sink`: filesystem local primeiro, object storage opcional depois;
 - `crypto`: envelope versionado com AEAD para bulk data e ML-KEM para chaves;
 - `telemetry`: logs estruturados e estatísticas reproduzíveis.
 
-Sua enumeração registra fronteiras futuras e evita acoplamento no M1; não autoriza implementá-los antecipadamente.
+Sua enumeração registra fronteiras futuras; não autoriza implementá-los antecipadamente.
 
 ## Invariantes de correctness
 
@@ -102,7 +108,7 @@ Sua enumeração registra fronteiras futuras e evita acoplamento no M1; não aut
 
 ## Execução e memória
 
-O M1 não processa datasets. A partir do M2, o source local produzirá batches limitados por configuração, e o pipeline escreverá partes Parquet incrementalmente. O arquivo inteiro não deve ser materializado em memória. A execução inicial será síncrona; concorrência só poderá ser introduzida com evidência de benchmark e sem alterar os contratos centrais.
+O M1 não processa datasets. O M2 recebe um batch em memória, limitado pelo chamador, e não lê arquivos nem retém registros entre chamadas. A memória adicional corresponde às colunas Arrow e a uma string temporária reutilizada. No M3, o source local produzirá batches limitados por configuração e o pipeline escreverá partes Parquet incrementalmente. O arquivo inteiro não deve ser materializado em memória. A execução é síncrona; concorrência só poderá ser introduzida com evidência de benchmark e sem alterar os contratos centrais.
 
 ## Segurança e cloud
 
@@ -137,3 +143,7 @@ copybook -> AST -> CompiledCopybook
 ```
 
 incluindo `record_length`, offsets, byte lengths, physical encodings, signedness, precision/scale e Arrow Schema, além de diagnósticos explícitos para construções não suportadas. M2 não começa como parte desse trabalho.
+
+## Critério de conclusão do M2
+
+Uma fixture binária conhecida junto ao layout compilado M1 deve produzir o RecordBatch esperado exatamente, incluindo schema, ordem, valores e escala. Testes dos codecs, rejeições, propriedades reproduzíveis e toda a suíte M0/M1 devem passar, junto de formatação e Clippy sem warnings. M3 não começa como parte desse trabalho.

@@ -115,3 +115,160 @@ impl Display for CopybookDiagnostic {
 }
 
 impl Error for CopybookDiagnostic {}
+
+/// Location of a decoding failure. Record indices and byte offsets are zero-based.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct DecodeContext {
+    pub record_index: usize,
+    pub field_path: String,
+    /// Offset within the input batch, pointing at the offending byte when known.
+    pub byte_offset: usize,
+    /// Original one-based copybook source location.
+    pub span: SourceSpan,
+}
+
+/// Structured causes for layout validation and binary decoding failures.
+#[derive(Debug)]
+pub enum DecodeErrorKind {
+    InvalidLayout {
+        field_index: Option<usize>,
+        details: String,
+    },
+    InvalidBatchLength {
+        actual: usize,
+        record_length: usize,
+    },
+    InvalidFieldLength {
+        expected: usize,
+        actual: usize,
+    },
+    InvalidDisplayDigit {
+        offset: usize,
+        byte: u8,
+    },
+    InvalidPackedDigit {
+        nibble_index: usize,
+        nibble: u8,
+    },
+    InvalidPackedSign {
+        offset: usize,
+        nibble: u8,
+        signed: bool,
+    },
+    InvalidPackedPadding {
+        nibble: u8,
+    },
+    NumericOutOfRange {
+        value: i128,
+        precision: u8,
+    },
+    CapacityExceeded {
+        resource: &'static str,
+    },
+    Arrow(arrow_schema::ArrowError),
+}
+
+impl Display for DecodeErrorKind {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::InvalidLayout {
+                field_index,
+                details,
+            } => write!(
+                f,
+                "invalid compiled layout (field {field_index:?}): {details}"
+            ),
+            Self::InvalidBatchLength {
+                actual,
+                record_length,
+            } => write!(
+                f,
+                "batch length {actual} is not a multiple of record length {record_length}"
+            ),
+            Self::InvalidFieldLength { expected, actual } => {
+                write!(f, "expected {expected} field bytes, got {actual}")
+            }
+            Self::InvalidDisplayDigit { offset, byte } => write!(
+                f,
+                "invalid DISPLAY digit 0x{byte:02X} at field byte {offset}"
+            ),
+            Self::InvalidPackedDigit {
+                nibble_index,
+                nibble,
+            } => write!(
+                f,
+                "invalid packed digit 0x{nibble:X} at nibble {nibble_index}"
+            ),
+            Self::InvalidPackedSign { nibble, signed, .. } => {
+                write!(f, "invalid packed sign 0x{nibble:X} for signed={signed}")
+            }
+            Self::InvalidPackedPadding { nibble } => {
+                write!(f, "nonzero packed padding nibble 0x{nibble:X}")
+            }
+            Self::NumericOutOfRange { value, precision } => {
+                write!(f, "unscaled value {value} exceeds precision {precision}")
+            }
+            Self::CapacityExceeded { resource } => write!(f, "capacity exceeded for {resource}"),
+            Self::Arrow(error) => write!(f, "Arrow: {error}"),
+        }
+    }
+}
+
+/// A typed failure; no partial RecordBatch is returned on error.
+#[derive(Debug)]
+pub struct DecodeError {
+    pub kind: DecodeErrorKind,
+    pub context: Option<Box<DecodeContext>>,
+}
+
+impl DecodeError {
+    pub(crate) fn new(kind: DecodeErrorKind) -> Self {
+        Self {
+            kind,
+            context: None,
+        }
+    }
+
+    pub(crate) fn invalid_layout(field_index: Option<usize>, details: impl Into<String>) -> Self {
+        Self::new(DecodeErrorKind::InvalidLayout {
+            field_index,
+            details: details.into(),
+        })
+    }
+
+    pub(crate) fn capacity(resource: &'static str) -> Self {
+        Self::new(DecodeErrorKind::CapacityExceeded { resource })
+    }
+}
+
+impl Display for DecodeError {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        if let Some(context) = &self.context {
+            write!(
+                f,
+                "record {}, field {}, batch byte {} (line {}, column {}): ",
+                context.record_index,
+                context.field_path,
+                context.byte_offset,
+                context.span.line,
+                context.span.column
+            )?;
+        }
+        Display::fmt(&self.kind, f)
+    }
+}
+
+impl Error for DecodeError {
+    fn source(&self) -> Option<&(dyn Error + 'static)> {
+        match &self.kind {
+            DecodeErrorKind::Arrow(error) => Some(error),
+            _ => None,
+        }
+    }
+}
+
+impl From<arrow_schema::ArrowError> for DecodeError {
+    fn from(error: arrow_schema::ArrowError) -> Self {
+        Self::new(DecodeErrorKind::Arrow(error))
+    }
+}

@@ -157,7 +157,7 @@ O layout compilado resolve completamente encoding físico, signedness, precision
 | `PIC [S]9...V9...` COMP/COMP-4/BINARY | inteiro binário big-endian com escala implícita | `Decimal128(precision, scale)` |
 | `PIC [S]9...` COMP-3/PACKED-DECIMAL | packed decimal | `Decimal128(precision, scale)` |
 
-COMP-3 sempre mapeia para `Decimal128`, inclusive com escala zero. CP037 será a página de código do decoding EBCDIC, mas decoding não pertence ao M1 e ainda não é realizado pelo compilador.
+COMP-3 sempre mapeia para `Decimal128`, inclusive com escala zero. O decoder M2 usa CP037 para EBCDIC; o compilador M1 continua responsável apenas pelo layout. As políticas de bytes, sinais, preenchimento e limites numéricos estão no [contrato de decoding M2](DECODING.md), sem ampliação da sintaxe deste subset.
 
 ## Offsets, grupos e `FILLER`
 

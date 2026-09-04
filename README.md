@@ -13,13 +13,13 @@ arquivo binário fixed-record + COBOL copybook
 
 ## Status
 
-Este é um projeto educacional e de portfólio, mantido por um estudante de Engenharia da Computação. A arquitetura v0.1 está congelada. **M0 (fundação do repositório) e M1 (compilador de copybook) estão concluídos; M2 não foi iniciado.**
+Este é um projeto educacional e de portfólio, mantido por um estudante de Engenharia da Computação. A arquitetura v0.1 está congelada. **M0 (fundação), M1 (compilador de copybook) e M2 (codecs e Arrow RecordBatch) estão implementados.**
 
-O projeto ainda **não** oferece um pipeline end-to-end. Decoding de registros, escrita Arrow/Parquet, criptografia pós-quântica, cloud, checkpoints e observabilidade operacional pertencem a milestones posteriores. O software não deve ser usado para dados sensíveis ou cargas de produção.
+O projeto ainda **não** oferece um pipeline de arquivos end-to-end. A biblioteca decodifica batches binários em memória para Arrow. Leitura de arquivos, CLI funcional, escrita Parquet, criptografia pós-quântica, cloud, checkpoints e observabilidade operacional pertencem a milestones posteriores. O software não deve ser usado para dados sensíveis ou cargas de produção.
 
 ## Objetivo da fase atual
 
-O M1 transforma um copybook do subconjunto documentado em uma representação compilada, sem reinterpretar COBOL no futuro hot path de decoding:
+O M1 transforma um copybook do subconjunto documentado em uma representação compilada. O M2 usa esse layout para decodificar bytes sem reinterpretar COBOL no hot path:
 
 ```text
 sample.cpy
@@ -42,9 +42,9 @@ O subconjunto aceito é intencionalmente pequeno. Sintaxe fora dele deve produzi
 O repositório usa um único pacote Rust com biblioteca e CLI. O fluxo local planejado é:
 
 1. interpretar e compilar o copybook uma única vez;
-2. ler um arquivo binário de registros de tamanho fixo;
-3. em M2, implementar codecs e decodificar dados para Arrow;
-4. em M3, processar batches com memória limitada e escrever partes Parquet no filesystem local;
+2. em M3, ler um arquivo binário de registros de tamanho fixo em batches limitados;
+3. usar os codecs M2 para decodificar cada batch para Arrow;
+4. em M3, escrever partes Parquet incrementalmente no filesystem local;
 5. em milestones posteriores, adicionar robustez operacional e proteção híbrida AEAD + ML-KEM;
 6. somente depois da demonstração local, considerar um sink de object storage.
 
@@ -66,14 +66,36 @@ A descrição dos limites e invariantes está em [ARCHITECTURE.md](docs/ARCHITEC
 ## Verificação de desenvolvimento
 
 ```bash
-cargo fmt --check
+cargo fmt --all -- --check
 cargo clippy --all-targets --all-features -- -D warnings
 cargo test --all-targets
+cargo test --doc
 ```
 
-Os testes do M1 usam fixtures pequenas e determinísticas para validar AST, layout compilado, offsets, tamanho do registro, tipos e rejeição de construções não suportadas. Datasets públicos e sintéticos maiores serão introduzidos apenas quando o pipeline de decoding existir.
+Os testes do M1 validam AST, layout e rejeição de sintaxe não suportada. O M2 acrescenta a tabela pública CP037 completa, uma fixture binária anotada comparada a um RecordBatch esperado, testes adversariais e propriedades com seed fixa. Consulte a [origem das fixtures](tests/fixtures/README.md).
 
 A API de entrada do milestone é `parse_and_compile_copybook(&str)`. Para inspecionar separadamente as duas etapas, use `parse_copybook(&str)` seguido de `compile_copybook(&CopybookAst)`.
+
+## Decoding M2
+
+```rust
+use m2c_pipeline::{parse_and_compile_copybook, RecordDecoder};
+
+fn main() -> Result<(), Box<dyn std::error::Error>> {
+    let layout = parse_and_compile_copybook(
+        "       01 ROOT.\n       05 COUNT-FIELD PIC 9(2).\n"
+    )?;
+    let decoder = RecordDecoder::try_new(&layout)?;
+    let batch = decoder.decode_batch(&[0xF1, 0xF2, 0xF0, 0xF3])?;
+    assert_eq!(batch.num_rows(), 2); // Int64: 12 e 3
+    Ok(())
+}
+```
+
+O decoder valida o layout uma vez e pode ser reutilizado. O chamador fornece batches
+limitados com registros inteiros. Texto mantém espaços e controles CP037; erros
+numéricos retornam diagnósticos tipados, sem batch parcial. As políticas de sinais,
+precisão, capacidade e posições estão no [contrato de decoding](docs/DECODING.md).
 
 ## Roadmap
 
@@ -92,6 +114,7 @@ O projeto não pretende implementar COBOL completo, substituir ferramentas IBM, 
 
 - [Arquitetura v0.1](docs/ARCHITECTURE.md)
 - [Subconjunto COBOL Copybook v0.1](docs/COPYBOOK_SUBSET.md)
+- [Decoding de registros M2](docs/DECODING.md)
 - [Análise inicial do projeto](docs/ANALISE_DO_PROJETO.md)
 
 ## Referências
