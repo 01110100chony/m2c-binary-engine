@@ -511,4 +511,20 @@ mod tests {
             .expect_err("a value larger than Arrow Utf8 offsets must be rejected");
         assert!(matches!(error.kind, DiagnosticKind::InvalidLength { .. }));
     }
+
+    #[test]
+    fn test_binary_byte_length() {
+        assert_eq!(binary_byte_length(0), None);
+        for precision in 1..=4 {
+            assert_eq!(binary_byte_length(precision), Some(2));
+        }
+        for precision in 5..=9 {
+            assert_eq!(binary_byte_length(precision), Some(4));
+        }
+        for precision in 10..=18 {
+            assert_eq!(binary_byte_length(precision), Some(8));
+        }
+        assert_eq!(binary_byte_length(19), None);
+        assert_eq!(binary_byte_length(255), None);
+    }
 }
