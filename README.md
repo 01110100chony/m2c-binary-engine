@@ -13,9 +13,9 @@ arquivo binário fixed-record + COBOL copybook
 
 ## Status
 
-Este é um projeto educacional e de portfólio, mantido por um estudante de Engenharia da Computação. A arquitetura v0.1 está congelada. **M0 (fundação), M1 (compilador de copybook) e M2 (codecs e Arrow RecordBatch) estão implementados.**
+Este é um projeto educacional e de portfólio, mantido por um estudante de Engenharia da Computação. A arquitetura v0.1 está congelada. **M0 (fundação), M1 (compilador de copybook), M2 (codecs e Arrow RecordBatch) e M3 (conversão local para Parquet) estão implementados.**
 
-O projeto ainda **não** oferece um pipeline de arquivos end-to-end. A biblioteca decodifica batches binários em memória para Arrow. Leitura de arquivos, CLI funcional, escrita Parquet, criptografia pós-quântica, cloud, checkpoints e observabilidade operacional pertencem a milestones posteriores. O software não deve ser usado para dados sensíveis ou cargas de produção.
+O projeto oferece conversão local síncrona de um arquivo fixed-record para um arquivo Parquet, em batches limitados, pela biblioteca e pela CLI. Criptografia pós-quântica, cloud, checkpoints e observabilidade operacional pertencem a milestones posteriores. O software não deve ser usado para dados sensíveis ou cargas de produção.
 
 ## Objetivo da fase atual
 
@@ -39,12 +39,12 @@ O subconjunto aceito é intencionalmente pequeno. Sintaxe fora dele deve produzi
 
 ## Arquitetura v0.1
 
-O repositório usa um único pacote Rust com biblioteca e CLI. O fluxo local planejado é:
+O repositório usa um único pacote Rust com biblioteca e CLI. O fluxo é:
 
 1. interpretar e compilar o copybook uma única vez;
 2. em M3, ler um arquivo binário de registros de tamanho fixo em batches limitados;
 3. usar os codecs M2 para decodificar cada batch para Arrow;
-4. em M3, escrever partes Parquet incrementalmente no filesystem local;
+4. em M3, escrever incrementalmente row groups em um único arquivo Parquet local;
 5. em milestones posteriores, adicionar robustez operacional e proteção híbrida AEAD + ML-KEM;
 6. somente depois da demonstração local, considerar um sink de object storage.
 
@@ -68,7 +68,7 @@ A descrição dos limites e invariantes está em [ARCHITECTURE.md](docs/ARCHITEC
 ```bash
 cargo fmt --all -- --check
 cargo clippy --all-targets --all-features -- -D warnings
-cargo test --all-targets
+cargo test --all-targets --all-features
 cargo test --doc
 ```
 
@@ -96,6 +96,38 @@ O decoder valida o layout uma vez e pode ser reutilizado. O chamador fornece bat
 limitados com registros inteiros. Texto mantém espaços e controles CP037; erros
 numéricos retornam diagnósticos tipados, sem batch parcial. As políticas de sinais,
 precisão, capacidade e posições estão no [contrato de decoding](docs/DECODING.md).
+
+## Conversão local M3
+
+```bash
+cargo run -- convert --copybook tests/fixtures/sample_fixed.cpy --input tests/fixtures/sample_fixed.bin --output sample.parquet --batch-records 2
+```
+
+Os quatro argumentos são obrigatórios. `--batch-records` deve ser um inteiro
+positivo: limita quantos registros são lidos e decodificados por vez. O exemplo
+produz três linhas em dois row groups (2 + 1), sem compressão adicional. A saída
+deve ser um caminho novo, com diretório pai existente; arquivos existentes nunca
+são sobrescritos. Erros são escritos em stderr e retornam status não zero.
+
+A biblioteca expõe
+`convert_file(&CompiledCopybook, &Path, &Path, usize) -> Result<(), ConversionError>`.
+Os caminhos são entrada e saída, nessa ordem; o último argumento limita os
+registros por batch. O copybook é compilado uma vez e um único `RecordDecoder`
+é reutilizado. Schema, nomes, ordem, tipos, precisão/escala e valores M2 são
+preservados. A validação reabre o Parquet nos testes; a CLI não faz uma segunda
+leitura obrigatória do resultado.
+
+Entrada vazia produz Parquet vazio com schema. Registro incompleto no EOF,
+batch zero, overflow e dados numéricos inválidos retornam erros tipados. Erros
+de decoding indicam a posição absoluta no arquivo e o índice global do registro;
+o offset de byte do contexto M2 permanece relativo ao batch. Layouts somente FILLER são rejeitados na conversão M3, sem alterar
+seu suporte no compilador ou decoder.
+
+A memória dos dados é limitada por batch; o footer Parquet acumula metadados
+proporcionais à quantidade de row groups. Uma falha pode deixar saída parcial;
+não há atomic commit, manifest, retry ou retomada. O teste `local_conversion`
+executa a CLI sobre a fixture conhecida com batch de dois registros, reabre a
+saída e compara schema e valores com constantes independentes do decoder.
 
 ## Roadmap
 

@@ -4,7 +4,7 @@
 
 Esta é a arquitetura congelada para a reconstrução do M2C Quantum-Safe Data Pipeline. O projeto é experimental, educacional e orientado a portfólio. A prioridade é demonstrar correctness, limites de memória, interoperabilidade de formatos e decisões de segurança justificadas; não construir uma plataforma enterprise.
 
-O escopo de implementação atual termina no M2: compilador de copybook, codecs e decoding de batches para Arrow. As etapas posteriores descritas aqui estabelecem apenas os limites entre componentes e não afirmam que o pipeline de arquivos completo já existe.
+O escopo de implementação atual termina no M3: compilador de copybook, codecs, decoding de batches para Arrow e conversão local síncrona para Parquet. As etapas posteriores estabelecem apenas limites entre componentes e não afirmam que recuperação, proteção ou cloud já existem.
 
 ## Forma do repositório
 
@@ -30,9 +30,9 @@ arquivo binário fixed-record
     -> batches com memória limitada                 [M3]
     -> decoding orientado pelo layout compilado     [M2]
     -> Arrow RecordBatch                            [M2]
-    -> partes Parquet                               [M3]
+    -> row groups em um arquivo Parquet local        [M3]
     -> proteção híbrida opcional                    [milestone posterior]
-    -> sink local primeiro; object storage depois   [milestone posterior]
+    -> adaptadores opcionais de destino             [milestone posterior]
 ```
 
 O copybook é interpretado **uma única vez**. O resultado compilado resolve offsets, comprimentos físicos, encoding, signedness, precisão, escala, tipo lógico Arrow e tamanho total do registro. O hot path recebe esse layout pronto e não volta a interpretar tokens, cláusulas ou strings PIC.
@@ -70,7 +70,7 @@ Responsável por erros tipados. Erros de copybook devem informar, no mínimo, li
 
 ### `cli`
 
-Permanece uma camada fina sobre a biblioteca. No M1, o binário é apenas um placeholder honesto; comandos funcionais entram com a conversão local no M3. A API de biblioteca já permite inspecionar/compilar um copybook, e conversão de arquivo binário não faz parte desta etapa.
+Permanece uma camada fina sobre a biblioteca. No M3, `convert` recebe caminhos de copybook, entrada e saída e um limite positivo de registros por batch. Compila o copybook uma vez e chama a conversão local. A API de inspeção/compilação M1 permanece preservada.
 
 ## Componentes do M2
 
@@ -80,14 +80,37 @@ Permanece uma camada fina sobre a biblioteca. No M1, o binário é apenas um pla
 
 Cada chamada recebe bytes de registros concatenados, possui builders próprios e retorna um batch completo ou o primeiro erro. O schema compilado é preservado, inclusive nomes e não nulabilidade. FILLER mantém offsets sem produzir valores. O [contrato M2](DECODING.md) detalha validação, sinais e capacidade.
 
+## Componentes do M3
+
+- `source`: buffer limitado por `record_length × batch_records`, com cálculo de capacidade verificado e leitura síncrona que trata leituras curtas e interrupções;
+- `parquet_io`: criação exclusiva de uma saída local, sem sobrescrita, usando ArrowWriter e Parquet sem compressão adicional;
+- `pipeline`: `convert_file(&CompiledCopybook, &Path, &Path, usize)` retorna `Result<(), ConversionError>`, reutiliza um único RecordDecoder e escreve/finaliza cada batch como row group.
+
+Os módulos são internos; somente a função de conversão e o erro são exportados.
+Os caminhos da API são entrada e saída, respectivamente. A configuração de CLI
+usa apenas `args_os`, sem arquivo de configuração nem framework de providers.
+O contrato mínimo M3 concretiza a escrita incremental anteriormente descrita
+como partes em um único arquivo Parquet; particionamento e lifecycle recuperável
+de artefatos permanecem para M4.
+
+Entrada vazia preserva schema com zero linhas. Layouts somente FILLER recebem
+erro explícito antes da criação da saída; o contrato M1/M2 para esses layouts
+permanece intacto. EOF com registro parcial, capacidade inválida e erros de
+decoding/I/O/Parquet interrompem a conversão. Causas originais são preservadas;
+erros de decoding acrescentam o offset do batch no arquivo e traduzem o índice
+do registro para o índice global, preservando o offset de byte relativo, campo,
+span e causa M2. A CLI informa o erro em stderr e retorna status não zero.
+
+Um destino existente nunca é sobrescrito. Falhas podem deixar arquivos parciais;
+não há transação, remoção automática, manifest, retry, checkpoint ou retomada.
+A validação de saída ocorre por reabertura em testes, sem uma segunda passagem
+obrigatória em runtime.
+
 ## Componentes posteriores já delimitados
 
-Estes componentes não pertencem ao M0/M1/M2:
+Estes componentes não pertencem ao M0/M1/M2/M3:
 
-- `source`: leitura local fixed-record e formação de batches limitados;
-- `parquet_io`: escrita incremental de partes Parquet;
-- `pipeline`: orquestração, limites e lifecycle de artefatos;
-- `sink`: filesystem local primeiro, object storage opcional depois;
+- `sink`: adaptadores de destino e object storage opcional; M3 escreve diretamente no filesystem local;
 - `crypto`: envelope versionado com AEAD para bulk data e ML-KEM para chaves;
 - `telemetry`: logs estruturados e estatísticas reproduzíveis.
 
@@ -108,7 +131,7 @@ Sua enumeração registra fronteiras futuras; não autoriza implementá-los ante
 
 ## Execução e memória
 
-O M1 não processa datasets. O M2 recebe um batch em memória, limitado pelo chamador, e não lê arquivos nem retém registros entre chamadas. A memória adicional corresponde às colunas Arrow e a uma string temporária reutilizada. No M3, o source local produzirá batches limitados por configuração e o pipeline escreverá partes Parquet incrementalmente. O arquivo inteiro não deve ser materializado em memória. A execução é síncrona; concorrência só poderá ser introduzida com evidência de benchmark e sem alterar os contratos centrais.
+O M1 não processa datasets. O M2 recebe um batch em memória, limitado pelo chamador, e não lê arquivos nem retém registros entre chamadas. A memória adicional corresponde às colunas Arrow e a uma string temporária reutilizada. No M3, o source local produz batches limitados por configuração e o pipeline escreve e descarrega cada row group antes de ler o próximo batch. Os dados do arquivo inteiro não são materializados em memória; o footer Parquet mantém metadados proporcionais ao número de row groups. A execução é síncrona; concorrência só poderá ser introduzida com evidência de benchmark e sem alterar os contratos centrais.
 
 ## Segurança e cloud
 
@@ -147,3 +170,14 @@ incluindo `record_length`, offsets, byte lengths, physical encodings, signedness
 ## Critério de conclusão do M2
 
 Uma fixture binária conhecida junto ao layout compilado M1 deve produzir o RecordBatch esperado exatamente, incluindo schema, ordem, valores e escala. Testes dos codecs, rejeições, propriedades reproduzíveis e toda a suíte M0/M1 devem passar, junto de formatação e Clippy sem warnings. M3 não começa como parte desse trabalho.
+
+## Critério de conclusão do M3
+
+A CLI deve converter a fixture fixed-record conhecida usando o layout compilado
+e o decoder M2 em um arquivo Parquet local reabrível. A leitura deve preservar
+exatamente schema, nomes e ordem dos campos, tipos lógicos Arrow, precisão/escala
+Decimal128, contagem de linhas e valores. O teste de integração deve atravessar
+ao menos uma fronteira de batch, comprovando processamento em batches limitados.
+O teste usa três registros conhecidos, batch de dois e dois row groups (2 + 1).
+Toda a suíte M0–M2, os testes M3 e doctests devem passar, junto de formatação e
+Clippy sem warnings. M4 não começa como parte desse trabalho.

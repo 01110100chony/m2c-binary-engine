@@ -9,6 +9,7 @@ description = "Experimental mainframe-to-cloud data pipeline in Rust"
 [dependencies]
 arrow-array = "53"
 arrow-schema = "53"
+parquet = { version = "53", default-features = false, features = ["arrow"] }
 
 [dev-dependencies]
 proptest = { version = "1", default-features = false, features = ["std"] }
