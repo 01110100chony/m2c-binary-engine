@@ -511,4 +511,18 @@ mod tests {
             .expect_err("a value larger than Arrow Utf8 offsets must be rejected");
         assert!(matches!(error.kind, DiagnosticKind::InvalidLength { .. }));
     }
+
+    #[test]
+    fn arrow_data_type_mapping() {
+        assert_eq!(LogicalType::Utf8.arrow_data_type(), DataType::Utf8);
+        assert_eq!(LogicalType::Int64.arrow_data_type(), DataType::Int64);
+        assert_eq!(
+            LogicalType::Decimal128 {
+                precision: 10,
+                scale: 2
+            }
+            .arrow_data_type(),
+            DataType::Decimal128(10, 2)
+        );
+    }
 }
