@@ -179,9 +179,22 @@ pub fn compile_copybook(ast: &CopybookAst) -> Result<CompiledCopybook, CopybookD
                         "FILLER is supported only for elementary items",
                     ));
                 }
+                let group_name = canonical_name(&entry.name);
+                let group_path_components: Vec<&str> = groups
+                    .iter()
+                    .map(|g| g.name.as_str())
+                    .chain(std::iter::once(group_name.as_str()))
+                    .collect();
+                let group_path = group_path_components.join(".");
+                if !field_paths.insert(group_path.clone()) {
+                    return Err(CopybookDiagnostic::new(
+                        entry.span,
+                        DiagnosticKind::DuplicateField { path: group_path },
+                    ));
+                }
                 groups.push(GroupFrame {
                     level: entry.level,
-                    name: canonical_name(&entry.name),
+                    name: group_name,
                 });
             }
             EntryKind::Elementary { picture, usage } => {

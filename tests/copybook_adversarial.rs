@@ -434,3 +434,56 @@ fn hierarchy_level_transitions_produce_stable_paths_and_offsets() {
     );
     assert_eq!(compiled.record_length, 7);
 }
+
+#[test]
+fn duplicate_named_group_under_same_parent_is_rejected() {
+    let source = concat!(
+        "000100 01 ROOT.\n",
+        "000200 05 GRP.\n",
+        "000300    10 FIELD-A PIC X.\n",
+        "000400 05 GRP.\n",
+        "000500    10 FIELD-B PIC X.\n",
+    );
+
+    let error = expect_error(
+        parse_and_compile_copybook(source),
+        "two groups with the same qualified path must be rejected",
+    );
+    assert_eq!(
+        error.kind,
+        DiagnosticKind::DuplicateField {
+            path: "ROOT.GRP".to_owned(),
+        }
+    );
+    assert_eq!(error.span, SourceSpan::new(4, 8));
+}
+
+#[test]
+fn same_group_name_under_different_parents_is_accepted() {
+    let source = concat!(
+        "000100 01 ROOT.\n",
+        "000200 05 PARENT-A.\n",
+        "000300    10 DETAIL.\n",
+        "000400       15 VALUE-A PIC X.\n",
+        "000500 05 PARENT-B.\n",
+        "000600    10 DETAIL.\n",
+        "000700       15 VALUE-B PIC X.\n",
+    );
+
+    let compiled = parse_and_compile_copybook(source)
+        .expect("the same group name under different parents should compile");
+
+    let paths: Vec<_> = compiled
+        .fields
+        .iter()
+        .map(|f| f.path.as_deref().unwrap())
+        .collect();
+    assert_eq!(
+        paths,
+        vec![
+            "ROOT.PARENT-A.DETAIL.VALUE-A",
+            "ROOT.PARENT-B.DETAIL.VALUE-B",
+        ]
+    );
+    assert_eq!(compiled.record_length, 2);
+}
