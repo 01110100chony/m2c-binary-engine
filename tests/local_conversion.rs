@@ -414,3 +414,51 @@ fn decimal_precision_18_scale_zero_and_17_and_schema_metadata_roundtrip() {
         assert_eq!(array.value(0), value);
     }
 }
+
+#[test]
+fn failure_after_successful_batch_leaves_unfinalized_file() {
+    let layout_src = "       01 ROOT.\n       05 VAL PIC 9(2).\n";
+    let layout = parse_and_compile_copybook(layout_src).unwrap();
+
+    let mut input_data = Vec::new();
+    input_data.extend_from_slice(&[0xF1, 0xF2]); // rec 0, valid EBCDIC "12"
+    input_data.extend_from_slice(&[0xF3, 0xF4]); // rec 1, valid EBCDIC "34"
+    input_data.extend_from_slice(b"XX"); // rec 2, invalid DISPLAY
+    input_data.extend_from_slice(&[0xF7, 0xF8]); // rec 3, valid
+
+    let test_dir = std::env::temp_dir().join("audit_m3");
+    std::fs::create_dir_all(&test_dir).unwrap();
+
+    let input_path = test_dir.join("input.bin");
+    std::fs::write(&input_path, &input_data).unwrap();
+    let output_path = test_dir.join("output.parquet");
+    let _ = std::fs::remove_file(&output_path);
+
+    // Run conversion with batch size 2
+    let error = convert_file(&layout, &input_path, &output_path, 2).unwrap_err();
+
+    // Verify conversion returns failure
+    assert!(matches!(error, ConversionError::Decode { .. }));
+
+    // Verify partial output cannot masquerade as successfully finalized Parquet
+    let reader_result = ParquetRecordBatchReaderBuilder::try_new(File::open(&output_path).unwrap());
+    assert!(
+        reader_result.is_err(),
+        "Partial file should not be readable as valid Parquet"
+    );
+
+    let err_str = match reader_result {
+        Err(e) => e.to_string(),
+        _ => unreachable!(),
+    };
+
+    assert!(
+        err_str.contains("footer") || err_str.contains("too small"),
+        "Unexpected error: {}",
+        err_str
+    );
+
+    // Verify file resources are released (file is accessible and can be deleted)
+    std::fs::remove_file(&output_path).expect("File should be unlocked and deletable");
+    std::fs::remove_file(&input_path).unwrap();
+}
