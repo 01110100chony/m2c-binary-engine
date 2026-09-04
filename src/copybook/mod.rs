@@ -17,3 +17,47 @@ pub(crate) fn is_valid_data_name(value: &str) -> bool {
             .all(|byte| byte.is_ascii_alphanumeric() || byte == b'-')
         && !value.ends_with('-')
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_is_valid_data_name_valid() {
+        let valid_names = vec![
+            "A",
+            "DATA-NAME",
+            "A-1-B",
+            "A1",
+            "VALID-NAME-1",
+        ];
+
+        for name in valid_names {
+            assert!(
+                is_valid_data_name(name),
+                "Expected '{}' to be a valid data name",
+                name
+            );
+        }
+    }
+
+    #[test]
+    fn test_is_valid_data_name_invalid() {
+        let invalid_names = vec![
+            "",
+            "1-DATA",
+            "DATA-",
+            "-DATA",
+            "DATA_NAME",
+            "DATA NAME",
+        ];
+
+        for name in invalid_names {
+            assert!(
+                !is_valid_data_name(name),
+                "Expected '{}' to be an invalid data name",
+                name
+            );
+        }
+    }
+}
