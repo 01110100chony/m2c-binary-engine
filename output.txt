@@ -1,0 +1,320 @@
+2:
+3:use std::collections::HashSet;
+4:use std::sync::Arc;
+5:
+6:use arrow_array::builder::{Decimal128Builder, Int64Builder, StringBuilder};
+7:use arrow_array::{ArrayRef, RecordBatch, RecordBatchOptions};
+8:use arrow_schema::SchemaRef;
+9:
+10:use crate::codec::{decode_binary, decode_cp037, decode_display, decode_packed, utf8_length};
+11:use crate::copybook::is_valid_data_name;
+12:use crate::error::{DecodeContext, DecodeError, DecodeErrorKind};
+13:use crate::schema::{CompiledCopybook, CompiledField, LogicalType, PhysicalEncoding};
+14:
+35:pub struct RecordDecoder<'a> {
+36:    layout: &'a CompiledCopybook,
+37:    schema: SchemaRef,
+38:}
+39:
+40:impl<'a> RecordDecoder<'a> {
+41:    pub fn try_new(layout: &'a CompiledCopybook) -> Result<Self, DecodeError> {
+42:        validate_layout(layout)?;
+43:        Ok(Self {
+44:            layout,
+45:            schema: Arc::new(layout.arrow_schema.clone()),
+46:        })
+47:    }
+48:
+49:    /// Decode one batch, returning the first failure in record/field order.
+50:    ///
+51:    /// An empty input produces zero rows with the compiled schema. A layout
+52:    /// containing only FILLER produces zero columns with the correct row count.
+53:    /// No partial batch is returned on error. Offsets in errors are batch-relative.
+55:        let record_length = self.layout.record_length;
+56:        if !bytes.len().is_multiple_of(record_length) {
+57:            return Err(DecodeError::new(DecodeErrorKind::InvalidBatchLength {
+58:                actual: bytes.len(),
+59:                record_length,
+60:            }));
+61:        }
+62:        let rows = bytes.len() / record_length;
+63:        let mut columns = self
+64:            .layout
+65:            .fields
+66:            .iter()
+67:            .filter(|field| field.path.is_some())
+68:            .map(|field| Column::new(field.logical_type, rows))
+69:            .collect::<Result<Vec<_>, _>>()?;
+70:        let mut scratch = String::new();
+71:        for (record_index, record) in bytes.chunks_exact(record_length).enumerate() {
+72:            // chunks_exact and the validated contiguous layout bound this arithmetic.
+73:            let record_start = record_index * record_length;
+74:            for (field, column) in self
+75:                .layout
+76:                .fields
+77:                .iter()
+78:                .filter(|field| field.path.is_some())
+79:                .zip(&mut columns)
+80:            {
+81:                let field_bytes = record
+82:                    .get(field.offset..field.offset + field.byte_length)
+83:                    .ok_or_else(|| {
+84:                        DecodeError::invalid_layout(None, "field falls outside record")
+85:                    })?;
+86:                column
+87:                    .append(field, field_bytes, &mut scratch)
+88:                    .map_err(|mut error| {
+89:                        let relative = match &error.kind {
+90:                            DecodeErrorKind::InvalidDisplayDigit { offset, .. }
+91:                            | DecodeErrorKind::InvalidPackedSign { offset, .. } => *offset,
+92:                            DecodeErrorKind::InvalidPackedDigit { nibble_index, .. } => {
+93:                                nibble_index / 2
+94:                            }
+95:                            _ => 0,
+96:                        };
+97:                        error.context = Some(Box::new(DecodeContext {
+98:                            record_index,
+99:                            field_path: field
+100:                                .path
+101:                                .as_deref()
+103:                                .to_owned(),
+104:                            byte_offset: record_start + field.offset + relative,
+105:                            span: field.span,
+106:                        }));
+107:                        error
+108:                    })?;
+109:            }
+110:        }
+111:        let arrays = columns.into_iter().map(Column::finish).collect();
+112:        RecordBatch::try_new_with_options(
+113:            Arc::clone(&self.schema),
+114:            arrays,
+115:            &RecordBatchOptions::new().with_row_count(Some(rows)),
+116:        )
+117:        .map_err(DecodeError::from)
+118:    }
+119:}
+120:
+121:fn canonical_name(name: &str) -> bool {
+122:    is_valid_data_name(name) && !name.bytes().any(|byte| byte.is_ascii_lowercase())
+123:}
+124:
+125:fn validate_layout(layout: &CompiledCopybook) -> Result<(), DecodeError> {
+126:    if !canonical_name(&layout.name) || layout.name == "FILLER" {
+127:        return Err(DecodeError::invalid_layout(
+128:            None,
+129:            "invalid canonical root name",
+130:        ));
+131:    }
+132:    if layout.record_length == 0
+133:        || layout.record_length > isize::MAX as usize
+134:        || layout.fields.is_empty()
+135:    {
+136:        return Err(DecodeError::invalid_layout(
+137:            None,
+138:            "record must contain fields and have a positive addressable length",
+139:        ));
+140:    }
+141:    let mut next_offset = 0_usize;
+142:    let mut column_index = 0;
+143:    let mut paths = HashSet::new();
+144:    for (index, field) in layout.fields.iter().enumerate() {
+145:        let invalid = |details| DecodeError::invalid_layout(Some(index), details);
+146:        if field.offset != next_offset || field.byte_length == 0 {
+147:            return Err(invalid(
+148:                "field lengths must be positive and offsets contiguous",
+149:            ));
+150:        }
+151:        next_offset = next_offset
+152:            .checked_add(field.byte_length)
+153:            .filter(|&end| end <= layout.record_length)
+154:            .ok_or_else(|| invalid("field length overflows or exceeds record length"))?;
+155:        if !canonical_name(&field.source_name)
+156:            || (field.source_name == "FILLER") != field.path.is_none()
+157:        {
+158:            return Err(invalid("invalid field name or FILLER path"));
+159:        }
+160:        validate_field(field).map_err(invalid)?;
+161:        if let Some(path) = &field.path {
+162:            let mut components = path.split('.');
+163:            if components.next() != Some(layout.name.as_str())
+164:                || !components.clone().all(canonical_name)
+165:                || components.next_back() != Some(field.source_name.as_str())
+166:                || !paths.insert(path.as_str())
+167:            {
+168:                return Err(invalid(
+169:                    "field path must be canonical, unique, and qualified by its root",
+170:                ));
+171:            }
+172:            let arrow_field = layout
+173:                .arrow_schema
+174:                .fields()
+175:                .get(column_index)
+176:                .ok_or_else(|| invalid("missing Arrow field"))?;
+177:            if arrow_field.name() != path
+178:                || arrow_field.is_nullable()
+179:                || arrow_field.data_type() != &field.logical_type.arrow_data_type()
+180:            {
+181:                return Err(invalid(
+182:                    "Arrow name, type, order or nullability differs from compiled field",
+183:                ));
+184:            }
+185:            column_index += 1;
+186:        }
+187:    }
+188:    if next_offset != layout.record_length || column_index != layout.arrow_schema.fields().len() {
+189:        return Err(DecodeError::invalid_layout(
+190:            None,
+191:            "record length or Arrow column count differs from layout",
+192:        ));
+193:    }
+194:    Ok(())
+195:}
+196:
+197:fn validate_field(field: &CompiledField) -> Result<(), &'static str> {
+198:    if field.physical_encoding == PhysicalEncoding::EbcdicText {
+199:        if field.logical_type != LogicalType::Utf8
+200:            || field.signed
+201:            || field.precision.is_some()
+202:            || field.scale.is_some()
+203:            || field.byte_length > i32::MAX as usize
+204:        {
+205:            return Err("inconsistent CP037 text metadata");
+206:        }
+207:        return Ok(());
+208:    }
+209:    let precision = field.precision.ok_or("missing numeric precision")?;
+210:    let scale = field.scale.ok_or("missing numeric scale")?;
+211:    if !(1..=18).contains(&precision) || scale < 0 || scale >= precision as i8 {
+212:        return Err("numeric precision/scale outside the M1 subset");
+213:    }
+215:    {
+216:        LogicalType::Int64
+217:    } else {
+218:        LogicalType::Decimal128 { precision, scale }
+219:    };
+221:        PhysicalEncoding::EbcdicDisplayNumeric => {
+222:            if field.signed {
+223:                return Err("signed DISPLAY is unsupported");
+224:            }
+225:            usize::from(precision)
+226:        }
+227:        PhysicalEncoding::BigEndianBinary => match precision {
+228:            1..=4 => 2,
+229:            5..=9 => 4,
+230:            _ => 8,
+231:        },
+232:        PhysicalEncoding::PackedDecimal => (usize::from(precision) + 2) / 2,
+234:    };
+236:        return Err("numeric physical length or logical type differs from the M1 mapping");
+237:    }
+238:    Ok(())
+239:}
+240:
+241:enum Column {
+242:    Text(StringBuilder),
+243:    Integer(Int64Builder),
+244:    Decimal(Decimal128Builder),
+245:}
+246:
+247:impl Column {
+248:    fn new(logical: LogicalType, rows: usize) -> Result<Self, DecodeError> {
+249:        match logical {
+250:            LogicalType::Utf8 => {
+251:                check_buffer_capacity(rows, 4, 1)?;
+252:                Ok(Self::Text(StringBuilder::with_capacity(rows, 0)))
+253:            }
+254:            LogicalType::Int64 => {
+255:                check_buffer_capacity(rows, 8, 0)?;
+256:                Ok(Self::Integer(Int64Builder::with_capacity(rows)))
+257:            }
+258:            LogicalType::Decimal128 { precision, scale } => {
+259:                check_buffer_capacity(rows, 16, 0)?;
+260:                Ok(Self::Decimal(
+261:                    Decimal128Builder::with_capacity(rows)
+262:                        .with_precision_and_scale(precision, scale)?,
+263:                ))
+264:            }
+265:        }
+266:    }
+267:
+268:    fn append(
+269:        &mut self,
+270:        field: &CompiledField,
+272:        scratch: &mut String,
+273:    ) -> Result<(), DecodeError> {
+274:        if let Self::Text(builder) = self {
+275:            let length = utf8_length(bytes)?;
+276:            check_utf8_growth(builder.values_slice().len(), length)?;
+277:            scratch.clear();
+278:            scratch
+279:                .try_reserve_exact(length)
+280:                .map_err(|_| DecodeError::capacity("CP037 scratch string"))?;
+281:            decode_cp037(bytes, scratch);
+282:            builder.append_value(scratch.as_str());
+283:            return Ok(());
+284:        }
+285:        let precision = field
+286:            .precision
+287:            .ok_or_else(|| DecodeError::invalid_layout(None, "missing numeric precision"))?;
+288:        let value = match field.physical_encoding {
+289:            PhysicalEncoding::EbcdicDisplayNumeric => decode_display(bytes, precision)?,
+290:            PhysicalEncoding::BigEndianBinary => decode_binary(bytes, precision, field.signed)?,
+291:            PhysicalEncoding::PackedDecimal => decode_packed(bytes, precision, field.signed)?,
+292:            PhysicalEncoding::EbcdicText => {
+293:                return Err(DecodeError::invalid_layout(
+294:                    None,
+295:                    "text field with numeric builder",
+296:                ));
+297:            }
+298:        };
+299:        match self {
+300:            Self::Integer(builder) => builder.append_value(i64::try_from(value).map_err(|_| {
+301:                DecodeError::new(DecodeErrorKind::NumericOutOfRange { value, precision })
+302:            })?),
+303:            Self::Decimal(builder) => builder.append_value(value),
+304:            Self::Text(_) => {
+305:                return Err(DecodeError::invalid_layout(
+306:                    None,
+307:                    "numeric field with text builder",
+308:                ));
+309:            }
+310:        }
+311:        Ok(())
+312:    }
+313:
+314:    fn finish(self) -> ArrayRef {
+315:        match self {
+316:            Self::Text(mut builder) => Arc::new(builder.finish()),
+317:            Self::Integer(mut builder) => Arc::new(builder.finish()),
+318:            Self::Decimal(mut builder) => Arc::new(builder.finish()),
+319:        }
+320:    }
+321:}
+322:
+323:fn check_buffer_capacity(rows: usize, width: usize, extra: usize) -> Result<(), DecodeError> {
+324:    // Arrow rounds buffer allocations up to 64-byte alignment.
+325:    rows.checked_add(extra)
+326:        .and_then(|n| n.checked_mul(width))
+327:        .filter(|&bytes| bytes <= (isize::MAX as usize & !63))
+328:        .ok_or_else(|| DecodeError::capacity("Arrow column buffer"))?;
+329:    Ok(())
+330:}
+331:
+332:fn check_utf8_growth(current: usize, additional: usize) -> Result<(), DecodeError> {
+333:    let total = current
+334:        .checked_add(additional)
+335:        .filter(|&total| total <= i32::MAX as usize)
+336:        .ok_or_else(|| DecodeError::capacity("Arrow Utf8 offsets"))?;
+337:    // MutableBuffer can double its capacity on append. Leave room for that
+338:    // growth as well as alignment, including on 32-bit targets.
+339:    check_buffer_capacity(total, 2, 0)?;
+340:    Ok(())
+341:}
+342:
+345:    use super::*;
+346:
+348:    fn arrow_capacity_limits_are_checked_without_large_allocations() {
+349:        let maximum = (i32::MAX as usize).min((isize::MAX as usize & !63) / 2);
+358:    }
+359:}
