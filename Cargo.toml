@@ -45,3 +45,7 @@ windows-sys = { version = "=0.61.2", optional = true, features = [
 
 [dev-dependencies]
 proptest = { version = "1", default-features = false, features = ["std"] }
+
+[[bench]]
+name = "m6"
+harness = false

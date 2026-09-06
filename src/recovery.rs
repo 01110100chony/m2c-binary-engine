@@ -907,5 +907,8 @@ fn convert_with_faults(
 }
 
 #[cfg(test)]
+#[path = "m6_recovery_tests.rs"]
+mod m6_tests;
+#[cfg(test)]
 #[path = "recovery_tests.rs"]
 mod tests;

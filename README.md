@@ -13,9 +13,28 @@ arquivo binário fixed-record + COBOL copybook
 
 ## Status
 
-Este é um projeto educacional e de portfólio, mantido por um estudante de Engenharia da Computação. A arquitetura v0.1 está congelada. **M0 a M5 estão implementados:** fundação, compilador de copybook, codecs e Arrow, conversão local para Parquet, recuperação em partes e proteção experimental de artefatos.
+Este é um projeto educacional e de portfólio, mantido por um estudante de Engenharia da Computação. A arquitetura v0.1 está congelada. **M0 a M6 estão implementados:** fundação, compilador de copybook, codecs e Arrow, conversão local para Parquet, recuperação em partes, proteção experimental de artefatos e evidência técnica local.
 
-O projeto oferece conversão local síncrona de um arquivo fixed-record para Parquet, em batches limitados, pela biblioteca e pela CLI. O M4 acrescenta saída em partes determinísticas com manifest e retomada após interrupção do processo, preservando a conversão de saída única M3. O M5 acrescenta, sob a feature opcional `pqc`, proteção autônoma de arquivos com ML-KEM-768, HKDF-SHA-256 e AES-256-GCM/STREAM-BE32. Cloud e observabilidade operacional pertencem a milestones posteriores. O software não deve ser usado para dados sensíveis ou cargas de produção.
+O projeto oferece conversão local síncrona de um arquivo fixed-record para Parquet, em batches limitados, pela biblioteca e pela CLI. O M4 acrescenta saída em partes determinísticas com manifest e retomada após interrupção do processo, preservando a conversão de saída única M3. O M5 acrescenta, sob a feature opcional `pqc`, proteção autônoma de arquivos com ML-KEM-768, HKDF-SHA-256 e AES-256-GCM/STREAM-BE32. M6 acrescenta resumo JSON por comando, campanhas complementares, verificação externa e benchmarks reproduzíveis. Cloud e infraestrutura de observabilidade permanecem futuras. O software não deve ser usado para dados sensíveis ou cargas de produção.
+
+## Evidência local M6
+
+Adicione `--report-json` aos comandos existentes para obter resultado, duração e
+volumes observáveis em stdout; diagnósticos e códigos de saída são preservados.
+Campos desconhecidos são `null`; o relatório não contém caminhos ou chaves.
+O runner PowerShell 7 oferece `Verify`, `Demo`, `Fuzz` e `Bench`:
+
+```powershell
+./scripts/m6.ps1 -Mode Verify
+./scripts/m6.ps1 -Mode Demo
+./scripts/m6.ps1 -Mode Fuzz -Profile Full
+./scripts/m6.ps1 -Mode Bench -Profile Full
+```
+
+Consulte o [contrato e reprodução](docs/M6_EVIDENCE.md) e os
+[resultados locais](docs/M6_RESULTS.md). Gates locais passaram; reparse/symlink
+teve skip ambiental Windows 1314. O workflow CI está configurado, sem execução
+remota registrada. As medições não estabelecem SLA nem memória global constante.
 
 ## Base de conversão
 

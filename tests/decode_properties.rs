@@ -6,8 +6,8 @@ use proptest::test_runner::RngSeed;
 
 proptest! {
     #![proptest_config(ProptestConfig {
-        cases: 256,
-        rng_seed: RngSeed::Fixed(0x4D3243),
+        cases: std::env::var("M6_TEST_CASES").ok().map(|s| s.parse().expect("M6_TEST_CASES integer")).unwrap_or(256),
+        rng_seed: RngSeed::Fixed(std::env::var("M6_TEST_SEED").ok().map(|s| s.parse().expect("M6_TEST_SEED integer")).unwrap_or(0x4D3243)),
         failure_persistence: None,
         ..ProptestConfig::default()
     })]

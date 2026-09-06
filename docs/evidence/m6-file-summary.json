@@ -1,0 +1,128 @@
+[
+  {
+    "scenario": "convert, 300000, 10500000, 256",
+    "samples": 7,
+    "min_ms": 410.9818,
+    "median_ms": 533.0781,
+    "max_ms": 870.8777
+  },
+  {
+    "scenario": "convert, 300000, 10500000, 4096",
+    "samples": 7,
+    "min_ms": 274.3628,
+    "median_ms": 358.9032,
+    "max_ms": 2063.398
+  },
+  {
+    "scenario": "convert, 300000, 10500000, 65536",
+    "samples": 7,
+    "min_ms": 234.2345,
+    "median_ms": 278.0262,
+    "max_ms": 623.6767
+  },
+  {
+    "scenario": "convert, 3000000, 105000000, 256",
+    "samples": 7,
+    "min_ms": 2884.3913,
+    "median_ms": 3401.8338,
+    "max_ms": 4292.3263
+  },
+  {
+    "scenario": "convert, 3000000, 105000000, 4096",
+    "samples": 7,
+    "min_ms": 1522.6096,
+    "median_ms": 2524.8027,
+    "max_ms": 3390.1109
+  },
+  {
+    "scenario": "convert, 3000000, 105000000, 65536",
+    "samples": 7,
+    "min_ms": 1354.1134,
+    "median_ms": 2279.183,
+    "max_ms": 2946.025
+  },
+  {
+    "scenario": "convert-parts, 300000, 10500000, 256",
+    "samples": 7,
+    "min_ms": 25287.7722,
+    "median_ms": 27092.1632,
+    "max_ms": 29421.4416
+  },
+  {
+    "scenario": "convert-parts, 300000, 10500000, 4096",
+    "samples": 7,
+    "min_ms": 1666.017,
+    "median_ms": 2129.1171,
+    "max_ms": 2650.916
+  },
+  {
+    "scenario": "convert-parts, 300000, 10500000, 65536",
+    "samples": 7,
+    "min_ms": 352.6329,
+    "median_ms": 430.4637,
+    "max_ms": 520.817
+  },
+  {
+    "scenario": "convert-parts, 3000000, 105000000, 65536",
+    "samples": 7,
+    "min_ms": 3299.9107,
+    "median_ms": 4163.5821,
+    "max_ms": 9585.6905
+  },
+  {
+    "scenario": "protect, 0, 1048576, 0",
+    "samples": 7,
+    "min_ms": 115.1349,
+    "median_ms": 147.9371,
+    "max_ms": 255.7565
+  },
+  {
+    "scenario": "protect, 0, 67108864, 0",
+    "samples": 7,
+    "min_ms": 587.7191,
+    "median_ms": 2939.6551,
+    "max_ms": 7373.0957
+  },
+  {
+    "scenario": "resume-validation, 300000, 10500000, 256",
+    "samples": 7,
+    "min_ms": 835.987,
+    "median_ms": 938.7244,
+    "max_ms": 1775.3134
+  },
+  {
+    "scenario": "resume-validation, 300000, 10500000, 4096",
+    "samples": 7,
+    "min_ms": 150.4985,
+    "median_ms": 210.093,
+    "max_ms": 418.8874
+  },
+  {
+    "scenario": "resume-validation, 300000, 10500000, 65536",
+    "samples": 7,
+    "min_ms": 110.7566,
+    "median_ms": 117.6326,
+    "max_ms": 162.6346
+  },
+  {
+    "scenario": "resume-validation, 3000000, 105000000, 65536",
+    "samples": 7,
+    "min_ms": 208.6572,
+    "median_ms": 234.7416,
+    "max_ms": 304.2381
+  },
+  {
+    "scenario": "unprotect, 0, 1048576, 0",
+    "samples": 7,
+    "min_ms": 127.5786,
+    "median_ms": 144.3838,
+    "max_ms": 932.6153
+  },
+  {
+    "scenario": "unprotect, 0, 67108864, 0",
+    "samples": 7,
+    "min_ms": 456.5073,
+    "median_ms": 1182.5572,
+    "max_ms": 7624.0644
+  }
+]

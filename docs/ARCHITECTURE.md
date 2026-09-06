@@ -178,12 +178,19 @@ A atomicidade de `keygen` é por arquivo: o commit de `public.key` precede o de
 parcial exige tratamento manual e nunca é reutilizado automaticamente. Isso não
 constitui uma transação da keypair inteira.
 
-## Componentes posteriores já delimitados
+## Evidência local M6 e componentes posteriores
 
-Estes componentes não pertencem ao M0–M5:
+M6 adiciona um resumo JSON privado na fronteira da CLI, opcional via
+`--report-json`, sem instrumentação do hot path ou alteração das APIs da biblioteca.
+Campanhas, verifier externo e runner são tooling de teste/medição. Formatos M4/M5
+e semântica de publicação permanecem iguais. Em erro de keygen sem outcome,
+`publication` é null mesmo após commit parcial, sem reconstrução pelo filesystem.
+Contrato e limitações: [M6_EVIDENCE.md](M6_EVIDENCE.md).
+
+Estes componentes permanecem futuros:
 
 - `sink`: adaptadores de destino e object storage opcional; M3 escreve diretamente no filesystem local;
-- `telemetry`: logs estruturados e estatísticas reproduzíveis.
+- infraestrutura de `telemetry`: serviços de coleta, tracing e monitoramento contínuo.
 
 Sua enumeração registra fronteiras futuras; não autoriza implementá-los antecipadamente.
 

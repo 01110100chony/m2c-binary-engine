@@ -10,6 +10,8 @@ mod codec;
 pub mod copybook;
 pub mod decode;
 pub mod error;
+#[cfg(test)]
+mod m6_campaign;
 mod manifest;
 mod parquet_io;
 mod pipeline;

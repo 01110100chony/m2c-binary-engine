@@ -1,0 +1,44 @@
+name: M6 local evidence
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  windows:
+    runs-on: windows-2022
+    timeout-minutes: 60
+    defaults:
+      run:
+        shell: pwsh
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          persist-credentials: false
+      - name: Toolchain
+        run: |
+          rustup toolchain install 1.95.0 --profile minimal --component rustfmt --component clippy
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          rustup override set 1.95.0
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      - name: Regression gates
+        run: ./scripts/m6.ps1 -Mode Verify
+      - name: Generative smoke
+        run: ./scripts/m6.ps1 -Mode Fuzz -Profile Smoke
+      - name: Demo
+        run: ./scripts/m6.ps1 -Mode Demo
+      - name: Benchmark tooling smoke (no performance gate)
+        run: ./scripts/m6.ps1 -Mode Bench -Profile Smoke
+      - name: Evidence summaries (exclude keys, corpus and raw diagnostics)
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: m6-summaries
+          retention-days: 14
+          path: |
+            target/m6/*/environment.json
+            target/m6/*/result.json
+            target/m6/*/commands.json
+            target/m6/*/samples.jsonl
+            target/m6/*/summary.json

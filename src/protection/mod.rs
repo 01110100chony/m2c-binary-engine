@@ -5,6 +5,8 @@
 
 mod codec;
 mod crypto;
+#[cfg(all(test, windows))]
+mod m6_tests;
 mod operations;
 mod publication;
 mod stream;

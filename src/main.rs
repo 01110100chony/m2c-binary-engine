@@ -7,17 +7,18 @@ use m2c_pipeline::{RecoveryMode, convert_file, convert_parts, parse_and_compile_
 use std::ffi::OsString;
 use std::path::PathBuf;
 use std::process::ExitCode;
+use std::time::Instant;
+mod cli_report;
+use cli_report::Report;
 
-const USAGE: &str = "usage: m2c-pipeline convert --copybook <file> --input <file> --output <file> --batch-records <N>";
-const PARTS_USAGE: &str = "usage: m2c-pipeline convert-parts --copybook <file> --input <file> --output-dir <dir> --batch-records <N> [--resume]";
+const USAGE: &str = "usage: m2c-pipeline convert --copybook <file> --input <file> --output <file> --batch-records <N> [--report-json]";
+const PARTS_USAGE: &str = "usage: m2c-pipeline convert-parts --copybook <file> --input <file> --output-dir <dir> --batch-records <N> [--resume] [--report-json]";
 #[cfg(feature = "pqc")]
-const KEYGEN_USAGE: &str = "usage: m2c-pipeline keygen --output-dir <dir>";
+const KEYGEN_USAGE: &str = "usage: m2c-pipeline keygen --output-dir <dir> [--report-json]";
 #[cfg(feature = "pqc")]
-const PROTECT_USAGE: &str =
-    "usage: m2c-pipeline protect --input <file> --public-key <file> --output <file>";
+const PROTECT_USAGE: &str = "usage: m2c-pipeline protect --input <file> --public-key <file> --output <file> [--report-json]";
 #[cfg(feature = "pqc")]
-const UNPROTECT_USAGE: &str =
-    "usage: m2c-pipeline unprotect --input <file> --secret-key <file> --output <file>";
+const UNPROTECT_USAGE: &str = "usage: m2c-pipeline unprotect --input <file> --secret-key <file> --output <file> [--report-json]";
 struct Args {
     copybook: PathBuf,
     input: PathBuf,
@@ -113,21 +114,27 @@ fn report_keygen_outcome(outcome: &KeyGenerationOutcome) {
 fn run_protection_command(
     command: &str,
     args: impl Iterator<Item = OsString>,
+    report: &mut Report,
 ) -> Result<(), Box<dyn std::error::Error>> {
     match command {
         "keygen" => {
             let output = parse_keygen_args(args)?;
+            report.error_category = Some("protection");
             let outcome = generate_keypair(&output)?;
+            report.keygen(&outcome);
             report_keygen_outcome(&outcome);
         }
         "protect" | "unprotect" => {
             let unprotect = command == "unprotect";
             let args = parse_protection_args(args, unprotect)?;
+            report.files(&args.input, Some(&args.output));
+            report.error_category = Some("protection");
             let outcome = if unprotect {
                 unprotect_file(&args.input, &args.key, &args.output)?
             } else {
                 protect_file(&args.input, &args.key, &args.output)?
             };
+            report.protection(&outcome);
             report_protection_outcome(&outcome);
         }
         _ => unreachable!("caller filters M5 command names"),
@@ -189,19 +196,40 @@ fn parse_args(mut args: impl Iterator<Item = OsString>) -> Result<Args, String> 
     })
 }
 
-fn run() -> Result<(), Box<dyn std::error::Error>> {
-    let mut raw = std::env::args_os().skip(1);
+fn run(
+    mut raw: impl Iterator<Item = OsString>,
+    report: &mut Report,
+) -> Result<(), Box<dyn std::error::Error>> {
     let command = raw.next();
     #[cfg(feature = "pqc")]
     if let Some(command_name) = command.as_deref().and_then(std::ffi::OsStr::to_str)
         && matches!(command_name, "keygen" | "protect" | "unprotect")
     {
-        return run_protection_command(command_name, raw);
+        return run_protection_command(command_name, raw, report);
     }
     let args = parse_args(command.into_iter().chain(raw))?;
+    report.batch_records = Some(args.batch_records);
+    report.mode = args.recovery_mode.map(|m| match m {
+        RecoveryMode::Create => "create",
+        RecoveryMode::Resume => "resume",
+    });
+    report.files(
+        &args.input,
+        args.recovery_mode
+            .is_none()
+            .then_some(args.output.as_path()),
+    );
+    report.error_category = Some("input_io");
     let copybook = std::fs::read_to_string(&args.copybook)
         .map_err(|error| format!("read copybook {}: {error}", args.copybook.display()))?;
+    report.error_category = Some("copybook");
     let layout = parse_and_compile_copybook(&copybook)?;
+    report.record_length = Some(layout.record_length);
+    report.error_category = Some(if args.recovery_mode.is_some() {
+        "recovery"
+    } else {
+        "conversion"
+    });
     match args.recovery_mode {
         Some(mode) => convert_parts(&layout, &args.input, &args.output, args.batch_records, mode)?,
         None => convert_file(&layout, &args.input, &args.output, args.batch_records)?,
@@ -210,7 +238,52 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
 }
 
 fn main() -> ExitCode {
-    match run() {
+    let start = Instant::now();
+    let mut raw = std::env::args_os().skip(1);
+    let command = raw.next().unwrap_or_default();
+    let name = command.to_str().unwrap_or("");
+    let recognized = matches!(name, "convert" | "convert-parts")
+        || (cfg!(feature = "pqc") && matches!(name, "keygen" | "protect" | "unprotect"));
+    let (mut filtered, mut count, mut value) = (Vec::new(), 0, false);
+    for arg in raw {
+        if recognized && !value && arg == "--report-json" {
+            count += 1;
+            continue;
+        }
+        if value {
+            value = false;
+        } else {
+            value = matches!(
+                arg.to_str(),
+                Some(
+                    "--input"
+                        | "--output"
+                        | "--output-dir"
+                        | "--copybook"
+                        | "--batch-records"
+                        | "--public-key"
+                        | "--secret-key"
+                )
+            );
+        }
+        filtered.push(arg);
+    }
+    let mut report = Report::new(name, count > 0);
+    let result = if count > 1 {
+        Err("duplicate argument --report-json".into())
+    } else {
+        run(std::iter::once(command).chain(filtered), &mut report)
+    };
+    let elapsed = start.elapsed();
+    report.finish(result.is_ok(), elapsed);
+    if report.enabled && report.write(&mut std::io::stdout().lock()).is_err() {
+        use std::io::Write;
+        let _ = writeln!(
+            std::io::stderr().lock(),
+            "m2c-pipeline: warning: JSON report unavailable"
+        );
+    }
+    match result {
         Ok(()) => ExitCode::SUCCESS,
         Err(error) => {
             eprintln!("m2c-pipeline: {error}");
