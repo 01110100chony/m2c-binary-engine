@@ -65,7 +65,7 @@ function Invoke-Recorded {
     $script:commands.Add($result); Save-Json (Join-Path $run 'commands.json') $script:commands
     $process.Dispose()
     if ($timedOut -or ($code -ne 0 -and -not $AllowFailure)) { throw "$Label failed (exit=$code, timeout=$timedOut), see $run" }
-    if ($Label -match '^(fuzz-|concrete-replay$|replay$|crash-recovery-demo$)' -and $text -notmatch 'test result: ok\. [1-9][0-9]* passed') {
+    if ($Label -match '^(fuzz-|concrete-replay$|replay$|crash-recovery-demo$|legacy-cli-stderr$|report-json-errors$|campaign-self-test$)' -and $text -notmatch 'test result: ok\. [1-9][0-9]* passed') {
         throw "$Label did not execute a test"
     }
     if ($Label -in @('fuzz-m4','fuzz-m5') -and $text -notmatch 'M6_CAMPAIGN .*result=true') { throw 'Missing completed campaign marker' }
@@ -134,14 +134,20 @@ try {
             @{label='doc-default'; argv=@('test','--doc')},
             @{label='doc-pqc'; argv=@('test','--doc','--all-features')},
             @{label='protection-release'; argv=@('test','--release','--test','protection','--all-features')},
-            @{label='reparse-evidence'; argv=@('test','--all-features','reparse_point_in_write_path_fails_closed','--','--nocapture')}
+            @{label='reparse-evidence'; argv=@('test','--all-features','reparse_point_in_write_path_fails_closed','--','--nocapture')},
+            @{label='legacy-cli-stderr'; argv=@('test','--test','cli_report','--all-features','legacy_','--','--nocapture')},
+            @{label='report-json-errors'; argv=@('test','--test','cli_report','--all-features','report_flag_errors_and_disabled_mode','--','--exact','--nocapture')},
+            @{label='campaign-self-test'; argv=@('test','--lib','m6_campaign::tests::artificial_generated_failure_persists_and_replays_without_rng','--','--exact','--nocapture')}
         )
         foreach ($check in $checks) { try { Cargo $check.argv $check.label | Out-Null } catch { $script:gateFailures.Add($_.ToString()) } }
         if ($script:gateFailures.Count) { throw ($script:gateFailures -join "`n") }
     } elseif ($Mode -eq 'Fuzz') {
-        $old=@{}; foreach ($key in @('M6_TEST_SEED','M6_TEST_CASES','M6_TEST_OUTPUT','M6_TEST_REPLAY')) { $old[$key]=[Environment]::GetEnvironmentVariable($key) }
+        $old=@{}; foreach ($key in @('M6_TEST_SEED','M6_TEST_CASES','M6_TEST_OUTPUT','M6_TEST_REPLAY','M6_TEST_COMMIT','M6_HARNESS_SELF_TEST','M6_HARNESS_GENERATED_ONLY')) { $old[$key]=[Environment]::GetEnvironmentVariable($key) }
         try {
             $env:M6_TEST_OUTPUT=Join-Path $run 'corpus'
+            $env:M6_TEST_COMMIT=$commit
+            [Environment]::SetEnvironmentVariable('M6_HARNESS_SELF_TEST',$null)
+            [Environment]::SetEnvironmentVariable('M6_HARNESS_GENERATED_ONLY',$null)
             if ($Replay) {
                 $env:M6_TEST_REPLAY=[IO.Path]::GetFullPath($Replay)
                 $filter=if ($ReplayKind -eq 'm4') {'m6_combined_resume_mutations'} else {'m6_structured_protection_mutations'}

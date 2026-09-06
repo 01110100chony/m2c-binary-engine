@@ -5,7 +5,7 @@ Atualizar incrementalmente após cada descoberta ou decisão relevante. Antes de
 marcar o estágio como COMPLETE e registrar questões abertas. Preservar histórico e
 registrar correções explicitamente. Não iniciar M7 automaticamente.
 
-**Estado atual: implementação local M6 concluída em 2026-09-06; ressalvas em M6_RESULTS.md.**
+**Estado atual: implementação e remediação local M6 concluídas em 2026-09-06; ressalvas em M6_RESULTS.md.**
 Para retomar, ler o CHECKPOINT FINAL e os requisitos R1–R4 do CHECKPOINT 5.
 Pendências e resultados provisórios nas seções anteriores são históricos; seus
 desfechos estão nos adendos posteriores e no resumo final.
@@ -712,7 +712,8 @@ escopo anterior. As cinco sugestões avaliadas são eficazes e foram aceitas.
 
 ### Implementação — checkpoint B — COMPLETE
 
-- Runner, perfis Smoke/Full/Stress e workflow Windows criados. CI ainda não executado remotamente.
+- Runner, perfis Smoke/Full/Stress e workflow Windows criados. Naquele checkpoint a
+  CI ainda não havia sido executada remotamente; o estado posterior está na remediação.
 - Smoke Fuzz passou após corrigir tratamento de variável replay vazia no harness.
 - Primeira demo falhou porque um build default concorrente substituiu o executável
   release pqc compartilhado. Runner agora copia CLI/verifier para bin/ próprio da
@@ -756,8 +757,66 @@ escopo anterior. As cinco sugestões avaliadas são eficazes e foram aceitas.
 - Evidência consolidada em docs/M6_RESULTS.md e docs/evidence/; contrato/tooling
   em docs/M6_EVIDENCE.md; README/arquitetura refletem a fronteira CLI implementada.
 - APIs públicas, formatos e dependências runtime preservados. Nenhum M7 iniciado.
-- Questões abertas de ambiente: teste reparse pulado por erro1314; CI configurada
-  mas não executada remotamente; Stress opcional não executado. Não contar skip como
+- Questões abertas naquele checkpoint: teste reparse pulado por erro1314; CI ainda
+  não executada remotamente; Stress opcional não executado. Não contar skip como
   cobertura dinâmica. Não há blocker de implementação identificado.
 - Proveniência: medições de arquivos precedem refinamento de argumento inválido da
   CLI e expansão do microbench; hashes preservados distinguem essa revisão medida.
+
+## Remediação de closeout M6 — COMPLETE
+
+### Revisão independente — checkpoint R0 — COMPLETE
+
+- Finding CLI: confirmado contra `fec65e0` (M5). As cinco constantes de uso ganharam
+  `[--report-json]`; portanto uma invocação inválida sem a flag mudou stderr e viola R1.
+- Finding campanha: relevante como lacuna de evidência, não como bug demonstrado do
+  pipeline. Replay representativo prova leitura concreta, mas não o ciclo falha gerada
+  -> persistência com proveniência -> replay da mesma falha sem PRNG.
+- Finding CI: confirmado pela API pública do GitHub. Run 34012733963, workflow
+  `M6 local evidence`, commit `8d44218605a59a190590772fa52232c5859c9bc8`,
+  conclusão success; Verify, Fuzz Smoke, Demo, Bench Smoke e upload passaram.
+  O artefato exige autenticação para download, então não há base para afirmar se o
+  teste reparse remoto executou dinamicamente ou pulou. O skip local 1314 permanece.
+- Decisão: aceitar os três findings. Restaurar literalmente usos M5 no parser humano;
+  adicionar regressões exatas de stderr; testar o harness com falha artificial apenas
+  em subprocesso de teste, persistindo família/seed/caso/config/commit e replay direto;
+  atualizar documentação sem atribuir Full ou reparse dinâmico à CI remota.
+- Questões abertas: nenhuma de escopo. Gates e Smoke serão repetidos após a correção.
+
+### Remediação — checkpoint R1 — COMPLETE
+
+- Constantes de uso humano restauradas byte a byte ao commit M5 `fec65e0`; suporte
+  da flag permanece no filtro M6 e na documentação, sem framework ou parser novo.
+- Regressões exatas cobrem convert/convert-parts incompletos, argumento desconhecido,
+  duplicado e erros keygen/protect com pqc. Também exigem stdout vazio, exit não zero
+  e ausência de texto M6 no stderr sem flag. Testes direcionados PASS.
+- Harness agora persiste falha final minimizada em envelope versionado com família,
+  origem, seed, número da avaliação, configuração, commit e `Case` concreto. Replay
+  aceita esse envelope e o formato representativo anterior; resolve o replay antes
+  de ler seed/cases.
+- Autoteste em subprocesso PASS: comando filho com oracle artificial retorna falha,
+  artefato gerado é validado, replay com seed/cases inválidos repete a falha e o mesmo
+  caso passa com oracle conhecido-success. Controles existem apenas sob cfg(test).
+- Runner fornece `M6_TEST_COMMIT`, limpa controles internos e inclui gates explícitos
+  para compatibilidade CLI, report-json e lifecycle do harness.
+- Questões abertas: documentação consolidada e matriz completa de gates/Smoke pendentes.
+
+### Remediação — CHECKPOINT FINAL — COMPLETE
+
+- Verify final PASS: `20260906-023908-05461822ca8d4f328fe9b9bf7a9ac70d`, 13 comandos.
+  Inclui todos os gates originais e testes direcionados CLI/harness. Único skip:
+  reparse local por erro Windows 1314, preservado como lacuna.
+- Fuzz Smoke + replay representativo PASS:
+  `20260906-023442-2b6ecee82f2d445d80cad1ceb79d1d02`, sem skip.
+- Demo PASS: `20260906-023534-7912947e8282460bb10b2f3eb163118a`, sem skip.
+- Bench Smoke PASS: `20260906-023642-62cebad49065464ca1e0a7f8614157e2`, sem skip.
+- Full histórico não foi reexecutado: mudanças de produção atingem somente literais
+  de erro não usados no caminho bem-sucedido medido; demais mudanças são cfg(test),
+  runner e documentação. Amostras/proveniência Full originais continuam preservadas.
+- CI remota confirmada para o candidato base `8d44218605a59a190590772fa52232c5859c9bc8`,
+  run 34012733963, Smoke verde. Não cobre esta remediação nem Full. Reparse remoto
+  permanece indeterminado porque o artefato requer autenticação neste ambiente.
+- Findings aceitos e resolvidos segundo R1/R2. APIs/formatos/dependências M0–M5
+  preservados; pqc continua opcional; nenhum M7 iniciado.
+- Questões abertas: nenhuma de closeout. Limitações ambientais/evidenciais permanecem
+  classificadas em M6_RESULTS.md e não são tratadas como cobertura.

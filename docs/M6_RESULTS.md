@@ -19,10 +19,21 @@ apagadas nem convertidas retroativamente em sucesso.
 | Gates Verify | 20260906-012521-0d3268cf8812447182bcdf6f8dd5e4fd | PASS; ressalva reparse abaixo |
 | Demo final com no-clobber | 20260906-013336-2497a890b3af43cfa7eabc138e5c543b | PASS |
 
+Remediação de closeout, preservada separadamente das execuções históricas:
+
+| Execução | Evidência | Resultado |
+|---|---|---|
+| Verify remediado final | 20260906-023908-05461822ca8d4f328fe9b9bf7a9ac70d | PASS; 13 comandos, ressalva reparse abaixo |
+| Fuzz Smoke remediado + replays representativos | 20260906-023442-2b6ecee82f2d445d80cad1ceb79d1d02 | PASS; 8 comandos, sem skip |
+| Demo remediada | 20260906-023534-7912947e8282460bb10b2f3eb163118a | PASS; 15 comandos, sem skip |
+| Bench Smoke remediado | 20260906-023642-62cebad49065464ca1e0a7f8614157e2 | PASS; 41 comandos, sem skip |
+
 Full executou quatro seeds (5060163–5060166): 40.000 fontes parser, 160.000 casos
 das quatro propriedades M2, 1.024 mutações M4 e 1.024 mutações M5, além do corpus
 inicial e dois replays de artefatos concretos. Não houve falha/skip nessas campanhas.
 São campanhas generativas e mutacionais; não há cobertura guiada ou prova de ausência de bugs.
+Os replays representativos desse Full exercitam desserialização/reexecução concreta,
+mas não são evidência de que a campanha encontrou falhas.
 
 O verifier externo rejeitou uma parte Parquet com valor alterado mesmo após atualizar
 seu receipt com tamanho/hash corretos. Foram acrescentados testes para metadata
@@ -87,10 +98,14 @@ registra hashes de fontes, fixtures, lock e executáveis isolados por execução
 O benchmark de arquivos precede o ajuste de parsing da flag de relatório após
 argumento desconhecido e a expansão do microbench; não mede esses ajustes finais.
 Não houve alteração do pipeline M3–M5 entre essas medições e os gates finais.
+A remediação de closeout posterior restaura apenas strings de erro fora do caminho
+medido e amplia tooling `cfg(test)`; não altera parsing/operação bem-sucedida nem o
+pipeline de arquivos. Portanto as amostras Full históricas continuam aplicáveis,
+com a proveniência original preservada.
 
 ## Gates executados
 
-Todos com exit 0 no Verify acima:
+O Verify remediado repetiu todos os gates abaixo com exit 0:
 
 - `cargo fmt --all -- --check`
 - `cargo clippy --all-targets --all-features -- -D warnings`
@@ -98,17 +113,57 @@ Todos com exit 0 no Verify acima:
 - `cargo test --all-targets --all-features`
 - `cargo test --doc` e `cargo test --doc --all-features`
 - `cargo test --release --test protection --all-features`
+- regressão literal de stderr M0–M5 sem `--report-json`
+- comportamento de argumentos/erros com `--report-json`
+- autoteste de falha gerada, persistência e replay concreto sem PRNG
 - Teste reparse explícito com `--nocapture`: harness passou, teste pulado por 1314.
 
 Após corrigir apenas o campo de bytes por iteração do microbench, fmt e Clippy
 foram repetidos com sucesso, assim como o próprio microbench Full. `git diff --check`
 passou (avisos locais de conversão LF/CRLF, sem erro de whitespace).
 
+No autoteste, um subprocesso com oracle artificial retornou não zero, e seu caso
+final minimizado foi persistido com família, origem, seed, número da avaliação,
+configuração, commit e bytes concretos. Um segundo subprocesso carregou o artefato
+com seed/cases propositalmente não numéricos e repetiu a falha; um terceiro carregou
+o mesmo caso com oracle conhecido-success e emitiu `M6_REPLAY_PASS`. Isso prova o
+mecanismo do harness e a propagação do teste. Não prova ausência de falhas nas
+campanhas M4/M5, cujos runs bem-sucedidos continuam sem descoberta de bug.
+
+O harness e suas variáveis artificiais existem apenas em `cfg(test)`. O runner
+registra o commit em falhas reais e continua excluindo corpus/falhas, chaves, dados
+e logs brutos dos artefatos publicados pela CI.
+
+## Evidência remota
+
+A API pública do GitHub confirma o run
+[34012733963](https://github.com/01110100chony/m2c-binary-engine/actions/runs/34012733963),
+workflow `M6 local evidence`, conclusão `success`, para o commit exato
+`8d44218605a59a190590772fa52232c5859c9bc8`. Passaram os steps Verify, Fuzz Smoke,
+Demo, Bench Smoke e upload dos resumos. Esse run não executou Fuzz Full nem Bench Full.
+Ele cobre o candidato revisado anterior a esta remediação; as correções de closeout
+são validadas pelos gates locais registrados abaixo.
+
+O artefato remoto requer autenticação para download neste ambiente. O sucesso do
+step Verify, isoladamente, não demonstra se o teste de reparse executou ou pulou;
+nenhuma cobertura dinâmica remota de reparse é alegada.
+
 ## Limitações e estado
 
 - Validação dinâmica de reparse point historicamente pula com erro Windows 1314.
   Um `ok` do harness após skip não é evidência dessa proteção.
-- CI foi configurada em arquivo local; nenhuma execução remota foi disparada.
+- CI Smoke remota passou no commit e run identificados acima; Full permanece local.
 - Stress M4 3M/batch256 é opcional e não foi executado.
 - Métricas do host e dados sintéticos não sustentam SLA, produção ou avaliação de segurança.
 - Não há desvio de arquitetura ou problema de correctness identificado pendente.
+
+## Avaliação dos findings de closeout
+
+- BLOCKER CLI: resolvido ao restaurar literalmente os cinco usos do M5 e protegê-los
+  com regressões byte a byte. A flag continua funcional e documentada.
+- IMPORTANT persistência/replay: resolvido como evidência do harness pelo autoteste
+  controlado descrito acima. Campanhas bem-sucedidas não são apresentadas como prova
+  de ausência de bugs.
+- Documentação CI: corrigida com o commit/run remoto exatos e separação Smoke/Full.
+
+Nenhum finding remanescente identificado invalida o closeout M6.

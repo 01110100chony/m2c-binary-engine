@@ -18,6 +18,44 @@ fn root() -> PathBuf {
 fn cli() -> Command {
     Command::new(env!("CARGO_BIN_EXE_m2c-pipeline"))
 }
+
+const CONVERT_USAGE: &str = "usage: m2c-pipeline convert --copybook <file> --input <file> --output <file> --batch-records <N>";
+const PARTS_USAGE: &str = "usage: m2c-pipeline convert-parts --copybook <file> --input <file> --output-dir <dir> --batch-records <N> [--resume]";
+
+fn assert_legacy_argument_error(args: &[&str], diagnostic: &str) {
+    let output = cli().args(args).output().unwrap();
+    assert!(!output.status.success());
+    assert!(output.stdout.is_empty());
+    assert_eq!(
+        output.stderr,
+        format!("m2c-pipeline: {diagnostic}\n").as_bytes()
+    );
+    assert!(!String::from_utf8_lossy(&output.stderr).contains("report-json"));
+}
+
+#[test]
+fn legacy_cli_stderr_is_unchanged_without_report_json() {
+    assert_legacy_argument_error(&["convert"], CONVERT_USAGE);
+    assert_legacy_argument_error(&["convert-parts"], PARTS_USAGE);
+    assert_legacy_argument_error(
+        &["convert", "--unexpected", "value"],
+        &format!("unknown or duplicate argument \"--unexpected\"\n{CONVERT_USAGE}"),
+    );
+    assert_legacy_argument_error(
+        &["convert", "--copybook", "first", "--copybook", "second"],
+        &format!("unknown or duplicate argument \"--copybook\"\n{CONVERT_USAGE}"),
+    );
+}
+
+#[cfg(feature = "pqc")]
+#[test]
+fn legacy_m5_stderr_is_unchanged_without_report_json() {
+    assert_legacy_argument_error(&["keygen"], "usage: m2c-pipeline keygen --output-dir <dir>");
+    assert_legacy_argument_error(
+        &["protect", "--input"],
+        "missing value for \"--input\"\nusage: m2c-pipeline protect --input <file> --public-key <file> --output <file>",
+    );
+}
 #[test]
 fn reports_conversion_resume_empty_and_failed_operations_without_paths() {
     let root = root();
@@ -123,6 +161,7 @@ fn report_flag_as_path_is_not_stripped_and_late_errors_do_not_claim_progress() {
     let plain = run("plain", false);
     assert!(plain.status.success());
     assert!(plain.stdout.is_empty());
+    assert!(plain.stderr.is_empty());
     let out = run("json", true);
     assert!(out.status.success());
     assert_eq!(

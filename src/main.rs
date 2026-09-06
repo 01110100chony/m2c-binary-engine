@@ -11,14 +11,18 @@ use std::time::Instant;
 mod cli_report;
 use cli_report::Report;
 
-const USAGE: &str = "usage: m2c-pipeline convert --copybook <file> --input <file> --output <file> --batch-records <N> [--report-json]";
-const PARTS_USAGE: &str = "usage: m2c-pipeline convert-parts --copybook <file> --input <file> --output-dir <dir> --batch-records <N> [--resume] [--report-json]";
+// These are frozen M5 diagnostics. M6 documents --report-json separately so an
+// invocation without that flag retains byte-for-byte compatible stderr.
+const USAGE: &str = "usage: m2c-pipeline convert --copybook <file> --input <file> --output <file> --batch-records <N>";
+const PARTS_USAGE: &str = "usage: m2c-pipeline convert-parts --copybook <file> --input <file> --output-dir <dir> --batch-records <N> [--resume]";
 #[cfg(feature = "pqc")]
-const KEYGEN_USAGE: &str = "usage: m2c-pipeline keygen --output-dir <dir> [--report-json]";
+const KEYGEN_USAGE: &str = "usage: m2c-pipeline keygen --output-dir <dir>";
 #[cfg(feature = "pqc")]
-const PROTECT_USAGE: &str = "usage: m2c-pipeline protect --input <file> --public-key <file> --output <file> [--report-json]";
+const PROTECT_USAGE: &str =
+    "usage: m2c-pipeline protect --input <file> --public-key <file> --output <file>";
 #[cfg(feature = "pqc")]
-const UNPROTECT_USAGE: &str = "usage: m2c-pipeline unprotect --input <file> --secret-key <file> --output <file> [--report-json]";
+const UNPROTECT_USAGE: &str =
+    "usage: m2c-pipeline unprotect --input <file> --secret-key <file> --output <file>";
 struct Args {
     copybook: PathBuf,
     input: PathBuf,

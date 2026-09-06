@@ -33,8 +33,10 @@ O runner PowerShell 7 oferece `Verify`, `Demo`, `Fuzz` e `Bench`:
 
 Consulte o [contrato e reprodução](docs/M6_EVIDENCE.md) e os
 [resultados locais](docs/M6_RESULTS.md). Gates locais passaram; reparse/symlink
-teve skip ambiental Windows 1314. O workflow CI está configurado, sem execução
-remota registrada. As medições não estabelecem SLA nem memória global constante.
+teve skip ambiental Windows 1314. O workflow Windows passou remotamente no commit
+`8d44218605a59a190590772fa52232c5859c9bc8` com Verify/Fuzz Smoke/Demo/Bench Smoke;
+esse run precede a remediação final, validada localmente. Full permanece local.
+As medições não estabelecem SLA nem memória global constante.
 
 ## Base de conversão
 

@@ -9,7 +9,9 @@ APIs de biblioteca e formatos M0–M5 permanecem congelados.
 Os comandos existentes aceitam `--report-json`, sem valor, após o comando e fora
 dos valores de outras flags. Emite um objeto JSON e newline em stdout após retorno
 normal; diagnósticos humanos permanecem em stderr. Não há progresso interno.
-M5 exige `pqc`. Sem a flag, sucesso continua silencioso.
+M5 exige `pqc`. Sem a flag, sucesso continua silencioso e diagnósticos de uso
+permanecem byte a byte iguais aos cinco comandos M5; a descoberta da flag fica nesta
+documentação, sem inserir texto M6 no stderr legado.
 
 Campos: report_version=1, command, mode, status, elapsed_ms, error_category,
 input_bytes, output_bytes, dataset_records, dataset_parts, batch_records,
@@ -38,8 +40,13 @@ Crash não garante relatório. Redirecionamentos devem ficar fora do namespace M
 Campanhas nativas generativas/mutacionais com proptest, sem feedback de cobertura.
 Smoke: 128 casos puros/8 filesystem; Full: 10.000/256, seeds 0x4D3643–0x4D3646.
 Parser/decoder: buffers <=64 KiB; M4 <=3 partes; M5 <=2 MiB+17 plaintext.
-Falhas concretas persistidas e reproduzidas antes de gerar casos. Timeout/abort/OOM
-é falha ou inconclusivo, nunca sucesso. Fixtures de teste não são dados de produção.
+Ao encontrar falha gerada, o harness persiste o caso final minimizado com família,
+origem, seed, número da avaliação, configuração e commit revisado. O replay lê esse
+caso antes de consultar seed/cases. Um autoteste força uma falha apenas em subprocesso
+de teste, exige exit não zero, valida o artefato, repete a falha sem PRNG e confirma
+um replay conhecido-success. O `replay.json` preservado em campanhas sem falha é só
+uma prova do caminho de replay representativo; não prova ausência de bugs. Timeout,
+abort ou OOM é falha/inconclusivo, nunca sucesso. Fixtures não são dados de produção.
 
 ## Medições e demo
 
@@ -88,7 +95,12 @@ dentro do diretório exclusivo. Não compartilhar diretórios de execução inte
 CI fixa [checkout v4.2.2](https://github.com/actions/checkout/releases/tag/v4.2.2)
 e [upload-artifact v4.6.2](https://github.com/actions/upload-artifact/releases/tag/v4.6.2)
 por commit; usa Rust 1.95.0. Publica apenas manifests/resumos/amostras, excluindo
-corpus de teste, chaves, dados e diagnósticos brutos. Execução remota depende de push/PR.
+corpus de teste, chaves, dados e diagnósticos brutos. A execução remota
+[34012733963](https://github.com/01110100chony/m2c-binary-engine/actions/runs/34012733963)
+passou em Windows para o commit `8d44218605a59a190590772fa52232c5859c9bc8`,
+com Verify, Fuzz Smoke, Demo, Bench Smoke e upload. Full continua exclusivamente local.
+O status do step não distingue execução dinâmica de reparse de skip; não atribuir
+essa cobertura ao run sem o respectivo log/artefato. A remediação posterior tem gates locais.
 
 ## Gates
 
