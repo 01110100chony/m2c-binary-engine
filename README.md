@@ -13,11 +13,11 @@ arquivo binário fixed-record + COBOL copybook
 
 ## Status
 
-Este é um projeto educacional e de portfólio, mantido por um estudante de Engenharia da Computação. A arquitetura v0.1 está congelada. **M0 (fundação), M1 (compilador de copybook), M2 (codecs e Arrow RecordBatch) e M3 (conversão local para Parquet) estão implementados.**
+Este é um projeto educacional e de portfólio, mantido por um estudante de Engenharia da Computação. A arquitetura v0.1 está congelada. **M0 a M5 estão implementados:** fundação, compilador de copybook, codecs e Arrow, conversão local para Parquet, recuperação em partes e proteção experimental de artefatos.
 
-O projeto oferece conversão local síncrona de um arquivo fixed-record para Parquet, em batches limitados, pela biblioteca e pela CLI. O M4 acrescenta saída em partes determinísticas com manifest e retomada após interrupção do processo, preservando a conversão de saída única M3. Criptografia pós-quântica, cloud e observabilidade operacional pertencem a milestones posteriores. O software não deve ser usado para dados sensíveis ou cargas de produção.
+O projeto oferece conversão local síncrona de um arquivo fixed-record para Parquet, em batches limitados, pela biblioteca e pela CLI. O M4 acrescenta saída em partes determinísticas com manifest e retomada após interrupção do processo, preservando a conversão de saída única M3. O M5 acrescenta, sob a feature opcional `pqc`, proteção autônoma de arquivos com ML-KEM-768, HKDF-SHA-256 e AES-256-GCM/STREAM-BE32. Cloud e observabilidade operacional pertencem a milestones posteriores. O software não deve ser usado para dados sensíveis ou cargas de produção.
 
-## Objetivo da fase atual
+## Base de conversão
 
 O M1 transforma um copybook do subconjunto documentado em uma representação compilada. O M2 usa esse layout para decodificar bytes sem reinterpretar COBOL no hot path:
 
@@ -46,7 +46,7 @@ O repositório usa um único pacote Rust com biblioteca e CLI. O fluxo é:
 3. usar os codecs M2 para decodificar cada batch para Arrow;
 4. em M3, escrever incrementalmente row groups em um único arquivo Parquet local;
 5. em M4, oferecer partes locais, recibos imutáveis de commit e retomada explícita;
-6. em milestones posteriores, adicionar proteção híbrida AEAD + ML-KEM;
+6. em M5, proteger opcionalmente um arquivo já produzido usando AEAD + ML-KEM;
 7. somente depois da demonstração local, considerar um sink de object storage.
 
 A descrição dos limites e invariantes está em [ARCHITECTURE.md](docs/ARCHITECTURE.md). A análise que motivou a reconstrução permanece em [ANALISE_DO_PROJETO.md](docs/ANALISE_DO_PROJETO.md).
@@ -72,6 +72,7 @@ cargo clippy --all-targets --all-features -- -D warnings
 cargo test --all-targets
 cargo test --all-targets --all-features
 cargo test --doc
+cargo test --doc --all-features
 ```
 
 Os testes do M1 validam AST, layout e rejeição de sintaxe não suportada. O M2 acrescenta a tabela pública CP037 completa, uma fixture binária anotada comparada a um RecordBatch esperado, testes adversariais e propriedades com seed fixa. Consulte a [origem das fixtures](tests/fixtures/README.md).
@@ -169,6 +170,60 @@ invariantes, fault injection, critérios de aceite e limitações. Dados e hashi
 usam memória limitada; artefatos e metadados em disco crescem com a quantidade de
 partes. A validação da retomada relê entrada e partes confirmadas.
 
+## Proteção experimental M5
+
+O M5 é compilado somente com a feature `pqc` e opera separadamente do pipeline M4:
+
+```bash
+cargo run --features pqc -- keygen --output-dir sample-keys
+cargo run --features pqc -- protect --input sample.parquet --public-key sample-keys/public.key --output sample.parquet.m5
+cargo run --features pqc -- unprotect --input sample.parquet.m5 --secret-key sample-keys/secret.key --output recovered.parquet
+```
+
+`keygen` exige um diretório de destino inexistente. `protect` e `unprotect` exigem
+um diretório pai existente e nunca sobrescrevem o nome final. A garantia de
+publicação M5 v1 cobre somente Windows/MSVC em volume NTFS local: staging e destino
+ficam no mesmo diretório e o commit usa criação atômica de hard link com falha se o
+nome final existir. Outros filesystems, compartilhamentos e plataformas falham
+fechado. Nenhuma operação M5 escreve em namespace administrado pelo M4; um artefato
+M4 pode ser usado somente como entrada de leitura.
+
+A suíte fechada v1 usa ML-KEM-768 para estabelecimento de chave, HKDF-SHA-256 e
+AES-256-GCM em STREAM-BE32, com chunks de 1 MiB e cabeçalho integral como AAD de
+cada frame. O limite formal é `2^32` frames e `2^52` bytes de plaintext. A produção
+obtém toda entropia do sistema operacional. `recipient_public_key_sha256` é apenas
+fingerprint/identificador da representação da chave pública; sua integridade vem do
+AAD autenticado e ele não autentica a identidade do destinatário.
+
+A biblioteca expõe `generate_keypair`, `protect_file` e `unprotect_file` em
+`m2c_pipeline::protection`. As operações processam o payload com memória limitada,
+publicam somente após validação integral e retornam erros, avisos de permissão e
+status de resíduo de staging tipados. Permissões restritivas e zeroização dos
+buffers secretos possuídos pelo M2C são mitigações de melhor esforço. Proteção da
+chave secreta em repouso, assinatura, múltiplos destinatários, KMS/HSM, integração
+M4 e suporte cloud permanecem fora do escopo.
+
+O formato binário, modelo de falhas, limites e limitações normativas estão no
+[contrato congelado M5](docs/M5_PROTECTION.md).
+
+`keygen` publica cada arquivo atomicamente, mas não oferece uma transação da keypair
+inteira: `public.key` é publicado antes de `secret.key`. Se a segunda publicação
+falhar, a operação retorna erro e preserva a chave pública já publicada; o diretório
+parcial não é adotado nem sobrescrito em nova execução e exige tratamento manual.
+A limpeza dos stagings próprios é best-effort. Um resíduo público pós-commit também
+pode permanecer. Nesse erro não há `KeyGenerationOutcome`, portanto os avisos e o
+status do primeiro commit não são retornados separadamente. A garantia de ausência
+de publicação parcial refere-se ao conteúdo de cada arquivo, não ao par como transação.
+
+Durante `unprotect`, plaintext autenticado de frames anteriores pode existir no
+staging antes da autenticação do arquivo completo. Em retornos normais de erro,
+`Drop` tenta remover esse staging em best-effort. Encerramento abrupto do processo ou
+queda de energia antes do commit pode deixar `.m2c-m5-staging-*` contendo plaintext
+parcial, sem publicar o destino final. O destino só é publicado após autenticação
+completa e validação de tamanho. Cleanup/recovery de staging após crash e resume
+estão fora do M5; não há garantia adicional de proteção contra acesso local ao
+staging durante a operação ou após crash.
+
 ## Roadmap
 
 - **M0 — fundação:** status e documentação honestos, módulos e contratos compatíveis com a arquitetura v0.1, CI local limpo.
@@ -176,7 +231,7 @@ partes. A validação da retomada relê entrada e partes confirmadas.
 - **M2 — codecs e Arrow:** CP037, DISPLAY, COMP/BINARY, COMP-3 e produção de `RecordBatch` tipado.
 - **M3 — Core MVP local:** source fixed-record, batches com memória limitada, CLI de conversão e escrita/validação de Parquet local.
 - **M4 — robustez e recuperação:** partes determinísticas, manifest, atomic commit, fault injection e retomada.
-- **M5 — proteção PQC experimental:** AEAD para o payload e ML-KEM para estabelecimento/proteção de chaves, com suites versionadas.
+- **M5 — proteção PQC experimental (implementado):** AEAD para o payload e ML-KEM para estabelecimento/proteção de chaves, com suíte fechada e versionada.
 - **M6 — evidência técnica e demo:** observabilidade local, fuzzing ampliado, benchmarks reproduzíveis e demonstração documentada.
 - **M7 — extensões opcionais:** sink de object storage/cloud, ML-DSA e novos formatos apenas depois da versão de portfólio local.
 
@@ -188,6 +243,7 @@ O projeto não pretende implementar COBOL completo, substituir ferramentas IBM, 
 - [Subconjunto COBOL Copybook v0.1](docs/COPYBOOK_SUBSET.md)
 - [Decoding de registros M2](docs/DECODING.md)
 - [Recuperação local M4](docs/M4_RECOVERY.md)
+- [Proteção experimental M5](docs/M5_PROTECTION.md)
 - [Análise inicial do projeto](docs/ANALISE_DO_PROJETO.md)
 
 ## Referências

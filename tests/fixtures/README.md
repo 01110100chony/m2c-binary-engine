@@ -47,3 +47,17 @@ normalizado para zero. FILLER não gera colunas nem validação de conteúdo.
 Referências independentes das representações: a tabela Unicode acima para
 CP037 e a documentação IBM de sinais packed decimal:
 https://www.ibm.com/docs/en/cobol-linux-x86/1.2.0?topic=arithmetic-sign-representation-zoned-packed-decimal-data
+
+## m5_mlkem768_openssl.txt
+
+Fixture de interoperabilidade M5 gerada fora do encoder/decoder do projeto. O par
+ML-KEM-768 e o encapsulamento foram produzidos pelo OpenSSL 3.6.1 com
+`genpkey`, `pkey` e `pkeyutl -encap`. O seed foi extraído do PKCS#8 somente para
+reconstrução determinística sob `#[cfg(test)]`; o ciphertext e o segredo compartilhado
+validam a compatibilidade FIPS 203 da dependência Rust.
+
+O envelope completo usa o mesmo resultado KEM e foi produzido independentemente com
+Python `cryptography` 46.0.6, salt `00..1f` e prefixo STREAM `a0..a6`. A fixture
+versiona plaintext, envelope e hashes em hexadecimal. Esses valores são exclusivamente
+oráculos de teste externos e não criam API, configuração ou caminho de entropia
+determinística no runtime de produção.

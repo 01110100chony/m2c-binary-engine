@@ -4,10 +4,10 @@
 
 Esta é a arquitetura congelada para a reconstrução do M2C Quantum-Safe Data Pipeline. O projeto é experimental, educacional e orientado a portfólio. A prioridade é demonstrar correctness, limites de memória, interoperabilidade de formatos e decisões de segurança justificadas; não construir uma plataforma enterprise.
 
-O escopo de implementação atual inclui M4: compilador de copybook, codecs,
-decoding de batches para Arrow, conversão local síncrona para Parquet e conversão
-recuperável em partes. A API de saída única M3 mantém seu contrato. Proteção e
-cloud continuam etapas posteriores, com limites definidos mas sem implementação.
+O escopo implementado inclui M5: compilador de copybook, codecs, decoding de batches
+para Arrow, conversão local síncrona para Parquet, conversão recuperável em partes e
+proteção autônoma opcional de arquivos. As APIs M3 e M4 mantêm seus contratos.
+Cloud continua uma etapa posterior.
 
 ## Forma do repositório
 
@@ -35,7 +35,7 @@ arquivo binário fixed-record
     -> Arrow RecordBatch                            [M2]
     -> row groups em um arquivo Parquet local        [M3]
        ou partes + manifest + retomada local         [M4]
-    -> proteção híbrida opcional                    [milestone posterior]
+    -> proteção híbrida opcional de artefato         [M5]
     -> adaptadores opcionais de destino             [milestone posterior]
 ```
 
@@ -151,12 +151,38 @@ coordenação distribuída nem promessa de recuperação em rede/cloud.
 O contrato completo, inclusive bootstrap interrompido e validação de namespace,
 está em [M4_RECOVERY.md](M4_RECOVERY.md).
 
+## Componentes do M5
+
+### `protection`
+
+O módulo opcional, compilado pela feature Cargo `pqc`, protege e recupera arquivos
+sem conhecer copybooks, Arrow, Parquet ou estado de recuperação. A API pública é
+limitada a geração de chaves, `protect_file` e `unprotect_file`; algoritmo, RNG,
+nonce e salt não são selecionáveis pelo chamador.
+
+A suíte v1 fechada combina ML-KEM-768, HKDF-SHA-256 e AES-256-GCM em
+STREAM-BE32. O cabeçalho integral é AAD de cada frame, o payload é processado em
+chunks de 1 MiB e nenhuma saída final aparece antes da validação completa. Tamanhos,
+contadores e o limite de `2^52` bytes usam aritmética verificada.
+
+Publicação M5 é restrita a Windows/MSVC e volume NTFS local. O staging fica no
+mesmo diretório e o commit no-clobber cria atomicamente um hard link somente se o
+nome final estiver ausente. Caminhos com reparse points e qualquer destino dentro
+de namespace M4 são rejeitados antes do staging e revalidados antes do commit.
+O M5 pode ler artefato M4, mas não o modifica nem participa de sua recuperação.
+
+O contrato completo está em [M5_PROTECTION.md](M5_PROTECTION.md).
+
+A atomicidade de `keygen` é por arquivo: o commit de `public.key` precede o de
+`secret.key`. Falha no segundo retorna erro sem rollback do primeiro; o diretório
+parcial exige tratamento manual e nunca é reutilizado automaticamente. Isso não
+constitui uma transação da keypair inteira.
+
 ## Componentes posteriores já delimitados
 
-Estes componentes não pertencem ao M0/M1/M2/M3/M4:
+Estes componentes não pertencem ao M0–M5:
 
 - `sink`: adaptadores de destino e object storage opcional; M3 escreve diretamente no filesystem local;
-- `crypto`: envelope versionado com AEAD para bulk data e ML-KEM para chaves;
 - `telemetry`: logs estruturados e estatísticas reproduzíveis.
 
 Sua enumeração registra fronteiras futuras; não autoriza implementá-los antecipadamente.
@@ -184,9 +210,26 @@ de registros. O número de artefatos e metadados em disco cresce com as partes.
 A entrada é relida integralmente para identidade e as partes confirmadas para
 integridade; esse custo é deliberado no contrato M4.
 
+No M5, cabeçalho e material de chave têm tamanho fixo e o payload é lido e escrito
+sequencialmente em buffers de no máximo 1 MiB mais overhead constante de AEAD. O
+arquivo completo nunca é materializado em memória. Plaintext desprotegido permanece
+em staging até autenticação, tamanho e sequência de frames serem integralmente
+validados.
+
+Frames já autenticados podem deixar plaintext parcial no staging da desproteção.
+Em erro normal, o descarte RAII tenta removê-lo em best-effort. Crash, encerramento
+forçado ou perda de energia antes do commit podem impedir esse descarte e deixar
+resíduo de plaintext, sem destino final publicado. Não há cleanup/recovery após
+crash, resume ou garantia adicional contra acesso local ao staging no M5.
+
 ## Segurança e cloud
 
-PQC é uma decisão experimental posterior. Quando implementada, a proteção usará uma cifra AEAD para o conteúdo e ML-KEM somente para estabelecimento/proteção de chaves; nenhuma primitiva criptográfica será implementada pelo projeto. O formato e o threat model exigirão documentação própria antes do código.
+PQC é uma camada experimental opcional do M5. ML-KEM é usado somente para
+estabelecimento de chave e AES-GCM protege o conteúdo; o projeto não implementa
+primitivas criptográficas. O fingerprint da chave pública é um identificador, não
+uma assinatura ou autenticação de identidade. A entropia de produção vem somente do
+sistema operacional. Zeroização e permissões restritivas são melhores esforços
+limitados, e proteção de chave secreta em repouso não é oferecida.
 
 O primeiro sink funcional será o filesystem local. Integrações cloud serão adaptadores opcionais depois que o pipeline local estiver correto, testado e demonstrável. O mainframe é a origem lógica dos formatos, não uma dependência de infraestrutura: nenhum IBM Z real é necessário.
 
@@ -194,7 +237,8 @@ O primeiro sink funcional será o filesystem local. Integrações cloud serão a
 
 Não fazem parte do trabalho atual:
 
-- PQC ou qualquer criptografia de payload;
+- integração automática entre proteção M5 e o pipeline/namespace M4;
+- assinatura, múltiplos destinatários, rotação, KMS/HSM ou proteção de chave secreta em repouso;
 - Azure, outro cloud provider ou object storage;
 - Tokio, canais `mpsc` ou pipeline assíncrono;
 - Prometheus, Grafana ou AIOps;
@@ -246,3 +290,15 @@ diagnósticos globais e exclusão mútua fazem parte do aceite.
 A matriz de testes e os gates completos estão em [M4_RECOVERY.md](M4_RECOVERY.md).
 Toda a suíte M0–M3, os testes M4 e doctests devem passar, junto de formatação e
 Clippy sem warnings. M5 não começa como parte desse trabalho.
+
+## Critério de conclusão do M5
+
+Um arquivo arbitrário, inclusive vazio, deve fazer round-trip byte a byte somente
+com a chave secreta correspondente. Alteração de cabeçalho, frames, ordem, tags,
+truncamento, chave errada, formato inválido, limite excedido e publicação insegura
+devem falhar fechado sem saída parcial. Publicação deve ser no-clobber em NTFS local,
+e nenhum destino ou staging pode entrar em namespace M4.
+
+O aceite exige fixtures independentes, testes adversariais, regressões M0–M4 e toda
+a matriz G4. O contrato normativo e os limites estão em
+[M5_PROTECTION.md](M5_PROTECTION.md). M6 não começa como parte desse trabalho.

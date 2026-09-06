@@ -6,13 +6,42 @@ authors = ["Anthony C. @01110100chony"]
 license = "Apache-2.0"
 description = "Experimental mainframe-to-cloud data pipeline in Rust"
 
+[features]
+default = []
+pqc = [
+    "dep:aead-stream",
+    "dep:aes-gcm",
+    "dep:getrandom",
+    "dep:hkdf",
+    "dep:ml-kem",
+    "dep:windows-sys",
+    "dep:zeroize",
+]
+
 [dependencies]
+aead-stream = { version = "=0.6.0", optional = true, features = ["alloc"] }
+aes-gcm = { version = "=0.11.1", optional = true, default-features = false, features = ["aes", "zeroize"] }
 arrow-array = "53"
 arrow-schema = "53"
+getrandom = { version = "=0.4.3", optional = true, features = ["sys_rng"] }
+hkdf = { version = "=0.12.4", optional = true }
+ml-kem = { version = "=0.3.2", optional = true, default-features = false, features = ["getrandom", "zeroize"] }
 parquet = { version = "53", default-features = false, features = ["arrow"] }
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 sha2 = "0.10.9"
+zeroize = { version = "=1.8.2", optional = true, default-features = false, features = ["alloc"] }
+
+[target.'cfg(windows)'.dependencies]
+windows-sys = { version = "=0.61.2", optional = true, features = [
+    "Win32_Foundation",
+    "Win32_Security",
+    "Win32_Security_Authorization",
+    "Win32_Storage_FileSystem",
+    "Win32_System_Memory",
+    "Win32_System_Threading",
+    "Win32_System_WindowsProgramming",
+] }
 
 [dev-dependencies]
 proptest = { version = "1", default-features = false, features = ["std"] }
