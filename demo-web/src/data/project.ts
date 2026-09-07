@@ -1,7 +1,7 @@
 const repository = "https://github.com/01110100chony/m2c-binary-engine"
 
 // Change this single ref to `main` after the publication evidence is merged there.
-export const repositoryRef = "m6-v.2-front-2"
+export const repositoryRef = "main"
 
 export const projectLinks = {
   source: repository,
