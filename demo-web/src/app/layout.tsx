@@ -6,9 +6,9 @@ const geistSans = Geist({ variable: "--font-geist-sans", subsets: ["latin"] })
 const geistMono = Geist_Mono({ variable: "--font-geist-mono", subsets: ["latin"] })
 
 export const metadata: Metadata = {
-  title: "M2C Binary Engine — Typed, recoverable legacy data pipeline",
+  title: "M2C Binary Engine — Anthony C. Engineering Portfolio",
   description:
-    "Experimental Rust pipeline for fixed-record mainframe data, typed Arrow/Parquet output, deterministic recovery, and optional post-quantum artifact protection.",
+    "A Computer Engineering portfolio case study: turning COBOL-described fixed records into typed Arrow and Parquet data with Rust.",
 }
 
 export const viewport: Viewport = { colorScheme: "dark", themeColor: "#0a0c0e" }

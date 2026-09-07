@@ -22,28 +22,34 @@
 
 :root {
   color-scheme: dark;
-  --background: oklch(0.16 0.004 240);
-  --foreground: oklch(0.93 0.004 240);
-  --card: oklch(0.2 0.004 240);
-  --card-foreground: oklch(0.93 0.004 240);
-  --elevated: oklch(0.235 0.004 240);
-  --primary: oklch(0.78 0.09 195);
+  --background: oklch(0.145 0.006 240);
+  --foreground: oklch(0.94 0.006 220);
+  --card: oklch(0.185 0.007 235);
+  --card-foreground: oklch(0.94 0.006 220);
+  --elevated: oklch(0.225 0.008 235);
+  --primary: oklch(0.79 0.095 195);
   --primary-foreground: oklch(0.18 0.02 220);
   --muted: oklch(0.24 0.004 240);
-  --muted-foreground: oklch(0.62 0.005 240);
+  --muted-foreground: oklch(0.68 0.008 230);
   --pass: oklch(0.74 0.13 155);
   --warn: oklch(0.79 0.13 75);
   --error: oklch(0.66 0.19 25);
-  --border: oklch(0.3 0.004 240);
+  --border: oklch(0.29 0.01 235);
   --radius: 0.4rem;
 }
 
 @layer base {
   * { @apply border-border; }
   html { scroll-behavior: smooth; }
-  body { @apply bg-background text-foreground antialiased; }
+  body { @apply bg-background text-foreground antialiased; min-width: 320px; }
   button, a { @apply focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary; }
+  button { cursor: pointer; }
+  button:disabled { cursor: default; }
   ::selection { background: color-mix(in oklch, var(--primary) 30%, transparent); }
+}
+
+@media (max-width: 639px) {
+  .grid-bg { background-size: 32px 32px; }
 }
 
 @utility grid-bg {

@@ -1,9 +1,9 @@
-export function SectionHeading({ index, title, description }: { index: string; title: string; description?: string }) {
+export function SectionHeading({ eyebrow, title, description }: { eyebrow?: string; title: string; description?: string }) {
   return (
-    <div className="mb-8 flex flex-col gap-2">
-      <span className="font-mono text-xs tracking-widest text-primary/80">{index}</span>
-      <h2 className="text-balance text-xl font-semibold tracking-tight text-foreground md:text-2xl">{title}</h2>
-      {description ? <p className="max-w-2xl text-pretty text-sm leading-relaxed text-muted-foreground">{description}</p> : null}
+    <div className="mb-10 flex flex-col gap-3">
+      {eyebrow ? <span className="font-mono text-sm text-primary">{eyebrow}</span> : null}
+      <h2 className="max-w-3xl text-balance text-3xl font-semibold tracking-[-0.025em] text-foreground md:text-4xl">{title}</h2>
+      {description ? <p className="max-w-2xl text-pretty text-base leading-7 text-muted-foreground">{description}</p> : null}
     </div>
   )
 }

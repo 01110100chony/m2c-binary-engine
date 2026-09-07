@@ -1,13 +1,12 @@
+import { ArchitectureSection } from "@/components/architecture-section"
 import { BenchmarkSection } from "@/components/benchmark-section"
 import { DemoSection } from "@/components/demo-section"
-import { EvidenceSection } from "@/components/evidence-section"
+import { EngineeringDecisions } from "@/components/engineering-decisions"
 import { Hero } from "@/components/hero"
-import { MetricsSection } from "@/components/metrics-section"
-import { MilestonesSection } from "@/components/milestones-section"
-import { RecoverySection } from "@/components/recovery-section"
-import { SecuritySection } from "@/components/security-section"
 import { SiteFooter } from "@/components/site-footer"
 import { SiteNav } from "@/components/site-nav"
+import { ValidationSection } from "@/components/validation-section"
+import { WhyBuiltSection } from "@/components/why-built-section"
 
 export default function Page() {
   return (
@@ -15,13 +14,12 @@ export default function Page() {
       <SiteNav />
       <main>
         <Hero />
-        <MetricsSection />
+        <WhyBuiltSection />
         <DemoSection />
+        <ArchitectureSection />
         <BenchmarkSection />
-        <RecoverySection />
-        <SecuritySection />
-        <EvidenceSection />
-        <MilestonesSection />
+        <ValidationSection />
+        <EngineeringDecisions />
       </main>
       <SiteFooter />
     </div>
