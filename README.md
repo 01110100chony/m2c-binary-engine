@@ -38,6 +38,28 @@ teve skip ambiental Windows 1314. O workflow Windows passou remotamente no commi
 esse run precede a remediação final, validada localmente. Full permanece local.
 As medições não estabelecem SLA nem memória global constante.
 
+## Desempenho — benchmarks locais
+
+Medições empíricas em máquina local (AMD Ryzen 5 3400G, 16 GB DDR4, Windows 10/NTFS, Rust 1.95 MSVC release, 1 warmup + 5 execuções medidas):
+
+- **M3 (conversão direta para Parquet)**: 3.000.000 registros (100,14 MiB) em batch 65.536 com mediana de **2.016,67 ms** (~1,49M reg/s, 49,65 MiB/s de entrada, pico de memória de trabalho observado de 15,24 MiB).
+- **M4 (conversão multipart recuperável)**: 3.000.000 registros em batch 65.536 (46 partes) com mediana de **4.735,55 ms** (~633,5k reg/s, 21,15 MiB/s, pico observado de 15,33 MiB).
+- **M5 (proteção quantum-safe)**: payload de 64 MiB com protect em **1.642,92 ms** (38,96 MiB/s, 5,28 MiB WS) e unprotect em **1.687,85 ms** (37,92 MiB/s, 5,29 MiB WS), verificado por igualdade estrita de SHA-256.
+- **Microbenchmarks (in-memory)**: decode de batch misto a **4,99M reg/s** (153.905 ns/it para 768 registros) e texto puro a **38,21M reg/s** (6.700 ns/it para 256 registros).
+
+Consulte a metodologia, limites e reprodutibilidade completa em [BENCHMARKS.md](docs/BENCHMARKS.md). Para executar o harness reproduzível:
+```powershell
+./scripts/benchmark.ps1 -Profile Full
+```
+
+## Compatibilidade externa — validação Spark / Cobrix
+
+Validação diferencial independente de exatidão semântica (não benchmark de desempenho):
+- Processamento de dataset realista sintetizado com GnuCOBOL (`input.ebcdic`, 100 registros de 24 bytes com texto CP037 e decimais compactados COMP-3).
+- Decodificação independente pelo conector oficial **AbsaOSS Cobrix 2.9.4** sobre **Apache Spark 4.0.1** (Java 17, Ubuntu 24.04 LTS via WSL2).
+- Comparação semântica campo a campo via [`scripts/compare_cobrix.py`](scripts/compare_cobrix.py): **100/100 registros idênticos** após normalização de tipos (`int32` vs `decimal128(9,0)`).
+- Relatório completo e declaração técnica formal em [EXTERNAL_COMPATIBILITY.md](docs/EXTERNAL_COMPATIBILITY.md).
+
 ## Base de conversão
 
 O M1 transforma um copybook do subconjunto documentado em uma representação compilada. O M2 usa esse layout para decodificar bytes sem reinterpretar COBOL no hot path:
@@ -265,6 +287,8 @@ O projeto não pretende implementar COBOL completo, substituir ferramentas IBM, 
 - [Decoding de registros M2](docs/DECODING.md)
 - [Recuperação local M4](docs/M4_RECOVERY.md)
 - [Proteção experimental M5](docs/M5_PROTECTION.md)
+- [Benchmarks e Desempenho](docs/BENCHMARKS.md)
+- [Validação Externa Spark/Cobrix](docs/EXTERNAL_COMPATIBILITY.md)
 - [Análise inicial do projeto](docs/ANALISE_DO_PROJETO.md)
 
 ## Referências
