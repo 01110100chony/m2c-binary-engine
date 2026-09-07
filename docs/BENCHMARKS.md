@@ -1,7 +1,7 @@
 # M2C Benchmark and Performance Evidence
 
 Status: Post-M6 reproducibility and benchmark evidence pass.  
-Canonical evidence: [`docs/evidence/benchmark-full.json`](benchmark-full.json)  
+Canonical evidence: [`docs/evidence/benchmark-full.json`](evidence/benchmark-full.json)  
 Runner: [`scripts/benchmark.ps1`](../scripts/benchmark.ps1)  
 Date: 2026-09-07
 
@@ -102,7 +102,7 @@ Tested on 3,000,000 records (100.14 MiB input):
 
 #### Observations
 - **Filesystem metadata overhead**: At batch 4,096, M4 creates and atomically commits 733 distinct Parquet files plus 733 JSON commit receipts (1,466 total file creations, flushes, and renames). The observed execution time is consistent with increased filesystem and publication overhead from producing, flushing, and committing many discrete parts and receipts.
-- **Batch 65,536**: With 46 parts, M4 throughput reaches ~594,061 records/s (19.83 MiB/s) with a tightly bounded observed peak working set of 15.24 MiB.
+- **Batch 65,536**: With 46 parts, M4 throughput reaches ~594,061 records/s (19.83 MiB/s) with an observed peak working set of 15.24 MiB.
 
 ---
 

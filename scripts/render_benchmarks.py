@@ -152,7 +152,11 @@ def format_int(val: Optional[int]) -> str:
     return f"{val:,}"
 
 
-def render_markdown(data: Dict[str, Any], json_rel_path: str = "docs/evidence/benchmark-full.json") -> str:
+def render_markdown(
+    data: Dict[str, Any],
+    json_rel_path: str = "docs/evidence/benchmark-full.json",
+    out_dir: str = "docs",
+) -> str:
     validate_json_schema(data)
 
     git = data["git"]
@@ -189,11 +193,16 @@ def render_markdown(data: Dict[str, Any], json_rel_path: str = "docs/evidence/be
     # Profile notes
     toolchain_note = toolchain.get("note", "Standard Cargo release optimization (opt-level 3, no LTO configured in Cargo.toml)")
 
+    try:
+        json_href = os.path.relpath(json_rel_path, out_dir).replace("\\", "/")
+    except Exception:
+        json_href = "evidence/benchmark-full.json"
+
     lines: List[str] = [
         "# M2C Benchmark and Performance Evidence",
         "",
         "Status: Post-M6 reproducibility and benchmark evidence pass.  ",
-        f"Canonical evidence: [`{json_rel_path}`]({Path(json_rel_path).name})  ",
+        f"Canonical evidence: [`{json_rel_path}`]({json_href})  ",
         "Runner: [`scripts/benchmark.ps1`](../scripts/benchmark.ps1)  ",
         f"Date: {date_str}",
         "",
@@ -362,7 +371,7 @@ def render_markdown(data: Dict[str, Any], json_rel_path: str = "docs/evidence/be
         m4_65k_recs_s = (m4_65k["records"] * 1000.0) / m4_65k_med
         m4_65k_mib_s = ((m4_65k["input_bytes"] / (1024 * 1024)) * 1000.0) / m4_65k_med
         m4_65k_ws = max(r.get("observed_peak_working_set_bytes") or 0 for r in m4_65k["runs"]) / (1024 * 1024)
-        obs_m4_batch = f"- **Batch 65,536**: With 46 parts, M4 throughput reaches ~{int(round(m4_65k_recs_s)):,} records/s ({m4_65k_mib_s:.2f} MiB/s) with a tightly bounded observed peak working set of {m4_65k_ws:.2f} MiB."
+        obs_m4_batch = f"- **Batch 65,536**: With 46 parts, M4 throughput reaches ~{int(round(m4_65k_recs_s)):,} records/s ({m4_65k_mib_s:.2f} MiB/s) with an observed peak working set of {m4_65k_ws:.2f} MiB."
     else:
         obs_m4_batch = "- **Batch 65,536**: Larger batch sizes yield significantly higher throughput and fewer parts."
 
@@ -615,13 +624,18 @@ def main() -> int:
         print(f"Error parsing JSON from {json_path}: {e}", file=sys.stderr)
         return 2
 
+    out_path = Path(args.output)
+    out_dir = str(out_path.parent).replace("\\", "/")
+
     try:
-        rendered = render_markdown(data, json_rel_path=str(json_path).replace("\\", "/"))
+        rendered = render_markdown(
+            data,
+            json_rel_path=str(json_path).replace("\\", "/"),
+            out_dir=out_dir,
+        )
     except Exception as e:
         print(f"Error rendering markdown: {e}", file=sys.stderr)
         return 2
-
-    out_path = Path(args.output)
 
     if args.check:
         if not out_path.exists():
