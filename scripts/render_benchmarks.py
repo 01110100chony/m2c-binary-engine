@@ -299,10 +299,23 @@ def render_markdown(data: Dict[str, Any], json_rel_path: str = "docs/evidence/be
             f"| {recs:,} | {recs_label} | {batch:,} | {input_mib:.2f} | {med:,.2f} | {min_t:,.2f} | {max_t:,.2f} | {int(round(rec_s)):,} | {mib_s:.2f} | {peak_ws_mib:.2f} MiB |"
         )
 
+    # Dynamic M3 batch observation
+    large_batch_thru = [
+        (b["records"] * 1000.0) / compute_median([r["wall_clock_elapsed_ms"] for r in b["runs"]])
+        for b in m3_entries
+        if b.get("batch_records") in (4096, 65536)
+    ]
+    if large_batch_thru:
+        min_lb = min(large_batch_thru) / 1_000_000
+        max_lb = max(large_batch_thru) / 1_000_000
+        obs_m3_batch = f"- **Batch size efficiency**: Larger batch sizes (4,096 and 65,536) achieve throughput of ~{min_lb:.2f}M–{max_lb:.2f}M records/s."
+    else:
+        obs_m3_batch = "- **Batch size efficiency**: Larger batch sizes achieve significantly higher throughput."
+
     lines.extend([
         "",
         "#### Observations",
-        "- **Batch size efficiency**: Larger batch sizes (4,096 and 65,536) achieve throughput exceeding 1.45–2.05M records/s (~49–68 MiB/s source input).",
+        obs_m3_batch,
         "- **Parquet footer scaling**: Very small batches (256 records) create thousands of row groups ($3,000,000 / 256 = 11,719$ row groups). As specified by the Parquet specification, the Parquet file footer stores metadata for every row group in memory before writing at close. The observed peak memory growth at batch 256 is consistent with accumulating row group footer metadata for thousands of row groups.",
         "",
         "---",
@@ -343,11 +356,21 @@ def render_markdown(data: Dict[str, Any], json_rel_path: str = "docs/evidence/be
             f"| {recs:,} | {batch:,} | {int(parts)} | {med:,.2f} | {min_t:,.2f} | {max_t:,.2f} | {int(round(rec_s)):,} | {mib_s:.2f} | {peak_ws_mib:.2f} MiB |"
         )
 
+    m4_65k = next((b for b in m4_entries if b.get("batch_records") == 65536), None)
+    if m4_65k:
+        m4_65k_med = compute_median([r["wall_clock_elapsed_ms"] for r in m4_65k["runs"]])
+        m4_65k_recs_s = (m4_65k["records"] * 1000.0) / m4_65k_med
+        m4_65k_mib_s = ((m4_65k["input_bytes"] / (1024 * 1024)) * 1000.0) / m4_65k_med
+        m4_65k_ws = max(r.get("observed_peak_working_set_bytes") or 0 for r in m4_65k["runs"]) / (1024 * 1024)
+        obs_m4_batch = f"- **Batch 65,536**: With 46 parts, M4 throughput reaches ~{int(round(m4_65k_recs_s)):,} records/s ({m4_65k_mib_s:.2f} MiB/s) with a tightly bounded observed peak working set of {m4_65k_ws:.2f} MiB."
+    else:
+        obs_m4_batch = "- **Batch 65,536**: Larger batch sizes yield significantly higher throughput and fewer parts."
+
     lines.extend([
         "",
         "#### Observations",
         "- **Filesystem metadata overhead**: At batch 4,096, M4 creates and atomically commits 733 distinct Parquet files plus 733 JSON commit receipts (1,466 total file creations, flushes, and renames). The observed execution time is consistent with increased filesystem and publication overhead from producing, flushing, and committing many discrete parts and receipts.",
-        "- **Batch 65,536**: With 46 parts, M4 throughput reaches ~633k records/s with a tightly bounded observed peak memory footprint.",
+        obs_m4_batch,
         "",
         "---",
         "",
@@ -362,41 +385,47 @@ def render_markdown(data: Dict[str, Any], json_rel_path: str = "docs/evidence/be
     m5_protect = next((b for b in benchmarks if b["benchmark"] == "m5-protect"), None)
     m5_unprotect = next((b for b in benchmarks if b["benchmark"] == "m5-unprotect"), None)
 
+    p_med, p_mib_s, p_ws_mib = 0.0, 0.0, 0.0
+    u_med, u_mib_s, u_ws_mib = 0.0, 0.0, 0.0
+
     if m5_protect:
         runs = m5_protect["runs"]
         wall_times = [r["wall_clock_elapsed_ms"] for r in runs]
-        med = compute_median(wall_times)
+        p_med = compute_median(wall_times)
         min_t = min(wall_times)
         max_t = max(wall_times)
         size_bytes = m5_protect["payload_bytes"]
         size_mib = size_bytes / (1024 * 1024)
-        mib_s = (size_mib * 1000.0) / med if med > 0 else 0
+        p_mib_s = (size_mib * 1000.0) / p_med if p_med > 0 else 0
         peak_ws_bytes = max(r.get("observed_peak_working_set_bytes") or 0 for r in runs)
-        peak_ws_mib = peak_ws_bytes / (1024 * 1024)
+        p_ws_mib = peak_ws_bytes / (1024 * 1024)
         lines.append(
-            f"| **Protect** | {int(size_mib)} MiB | {med:,.2f} | {min_t:,.2f} | {max_t:,.2f} | {mib_s:.2f} | {peak_ws_mib:.2f} MiB | Exact byte-for-byte roundtrip |"
+            f"| **Protect** | {int(size_mib)} MiB | {p_med:,.2f} | {min_t:,.2f} | {max_t:,.2f} | {p_mib_s:.2f} | {p_ws_mib:.2f} MiB | Exact byte-for-byte roundtrip |"
         )
 
     if m5_unprotect:
         runs = m5_unprotect["runs"]
         wall_times = [r["wall_clock_elapsed_ms"] for r in runs]
-        med = compute_median(wall_times)
+        u_med = compute_median(wall_times)
         min_t = min(wall_times)
         max_t = max(wall_times)
         size_bytes = m5_unprotect["payload_bytes"]
         size_mib = size_bytes / (1024 * 1024)
-        mib_s = (size_mib * 1000.0) / med if med > 0 else 0
+        u_mib_s = (size_mib * 1000.0) / u_med if u_med > 0 else 0
         peak_ws_bytes = max(r.get("observed_peak_working_set_bytes") or 0 for r in runs)
-        peak_ws_mib = peak_ws_bytes / (1024 * 1024)
+        u_ws_mib = peak_ws_bytes / (1024 * 1024)
         lines.append(
-            f"| **Unprotect** | {int(size_mib)} MiB | {med:,.2f} | {min_t:,.2f} | {max_t:,.2f} | {mib_s:.2f} | {peak_ws_mib:.2f} MiB | Exact byte-for-byte roundtrip |"
+            f"| **Unprotect** | {int(size_mib)} MiB | {u_med:,.2f} | {min_t:,.2f} | {max_t:,.2f} | {u_mib_s:.2f} | {u_ws_mib:.2f} MiB | Exact byte-for-byte roundtrip |"
         )
+
+    obs_m5_perf = f"- **Streaming performance**: Protect median was {p_med:,.2f} ms ({p_mib_s:.2f} MiB/s); unprotect median was {u_med:,.2f} ms ({u_mib_s:.2f} MiB/s)."
+    obs_m5_mem = f"- **Memory observation**: The streaming design processes fixed-size chunks (1 MiB); the 64 MiB benchmark observed approximately {p_ws_mib:.2f} MiB (protect) and {u_ws_mib:.2f} MiB (unprotect) peak working set sampled by the harness on this machine. Observed run-to-run variance across runs is preserved in the evidence without outlier exclusion."
 
     lines.extend([
         "",
         "#### Observations",
-        "- **Streaming performance**: Both encryption (ML-KEM encapsulation + HKDF-SHA256 + 1 MiB chunked AES-256-GCM) and decryption process 64 MiB in ~1.6–1.7 seconds median (~38–39 MiB/s).",
-        "- **Memory observation**: The streaming design processes fixed-size chunks (1 MiB); the 64 MiB benchmark observed approximately 5.28–5.29 MiB peak working set on this machine. Observed run-to-run variance across runs is preserved in the evidence without outlier exclusion.",
+        obs_m5_perf,
+        obs_m5_mem,
         "",
         "---",
         "",
@@ -438,10 +467,15 @@ def render_markdown(data: Dict[str, Any], json_rel_path: str = "docs/evidence/be
             f"| **{wl}** | {op_label} | {input_label} | {med_ns:,} | {min_ns:,} | {max_ns:,} | {thru_rec_s} | {thru_mib_s} | {thru_mb_s} |"
         )
 
+    micro_mixed = next((m for m in microbenchmarks if m.get("workload") == "mixed" and m.get("operation") == "decode"), None)
+    micro_text = next((m for m in microbenchmarks if m.get("workload") == "text" and m.get("operation") == "decode"), None)
+    mixed_rate_str = f"~{(micro_mixed['records_per_iteration'] * 1e9 / micro_mixed['median_ns_per_iteration']) / 1e6:.2f}M rec/s" if micro_mixed else "~4.5M rec/s"
+    text_rate_str = f"~{(micro_text['records_per_iteration'] * 1e9 / micro_text['median_ns_per_iteration']) / 1e6:.2f}M rec/s" if micro_text else "~36M rec/s"
+
     lines.extend([
         "",
         "> [!IMPORTANT]",
-        "> **Microbenchmarks vs. End-to-End**: Microbenchmarks measure in-memory decoding throughput (up to ~5M rec/s on mixed records and ~38M rec/s on pure text). End-to-end benchmarks include file I/O, Arrow array allocation, Parquet encoding, dictionary creation, and disk flushes (yielding ~1.5M–2.0M rec/s for M3). These two classes of measurements address distinct engineering layers and must not be conflated.",
+        f"> **Microbenchmarks vs. End-to-End**: Microbenchmarks measure in-memory decoding throughput (up to {mixed_rate_str} on mixed records and {text_rate_str} on pure text). End-to-end benchmarks include file I/O, Arrow array allocation, Parquet encoding, dictionary creation, and disk flushes (yielding ~1.4M–1.5M rec/s for M3). These two classes of measurements address distinct engineering layers and must not be conflated.",
         "",
         "---",
         "",

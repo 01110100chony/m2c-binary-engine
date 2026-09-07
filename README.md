@@ -40,12 +40,12 @@ As medições não estabelecem SLA nem memória global constante.
 
 ## Desempenho — benchmarks locais
 
-Medições empíricas em máquina local (AMD Ryzen 5 3400G, 16 GB DDR4, Windows 10/NTFS, Rust 1.95 MSVC release, 1 warmup + 5 execuções medidas):
+Medições empíricas em máquina local (AMD Ryzen 5 3400G, 16 GB DDR4, Windows 10/NTFS, Rust 1.95 MSVC release, 1 warmup + 5 execuções medidas, sem LTO):
 
-- **M3 (conversão direta para Parquet)**: 3.000.000 registros (100,14 MiB) em batch 65.536 com mediana de **2.016,67 ms** (~1,49M reg/s, 49,65 MiB/s de entrada, pico de memória de trabalho observado de 15,24 MiB).
-- **M4 (conversão multipart recuperável)**: 3.000.000 registros em batch 65.536 (46 partes) com mediana de **4.735,55 ms** (~633,5k reg/s, 21,15 MiB/s, pico observado de 15,33 MiB).
-- **M5 (proteção quantum-safe)**: payload de 64 MiB com protect em **1.642,92 ms** (38,96 MiB/s, 5,28 MiB WS) e unprotect em **1.687,85 ms** (37,92 MiB/s, 5,29 MiB WS), verificado por igualdade estrita de SHA-256.
-- **Microbenchmarks (in-memory)**: decode de batch misto a **4,99M reg/s** (153.905 ns/it para 768 registros) e texto puro a **38,21M reg/s** (6.700 ns/it para 256 registros).
+- **M3 (conversão direta para Parquet)**: 3.000.000 registros (100,14 MiB) em batch 65.536 com mediana de **2.096,45 ms** (~1,43M reg/s, 47,76 MiB/s de entrada, pico de memória de trabalho observado de 15,26 MiB).
+- **M4 (conversão multipart recuperável)**: 3.000.000 registros em batch 65.536 (46 partes) com mediana de **5.049,99 ms** (~594,1k reg/s, 19,83 MiB/s, pico observado de 15,24 MiB).
+- **M5 (proteção quantum-safe)**: payload de 64 MiB com protect em **5.466,58 ms** (11,71 MiB/s, 5,27 MiB WS) e unprotect em **877,25 ms** (72,95 MiB/s, 5,27 MiB WS), verificado por igualdade estrita byte a byte de ida e volta (roundtrip).
+- **Microbenchmarks (in-memory, isolados de disco/Parquet)**: decode de batch misto a **4,56M reg/s** (168.367 ns/it para 768 registros, 152,26 MiB/s) e texto puro a **36,07M reg/s** (7.098 ns/it para 256 registros, 137,58 MiB/s).
 
 Consulte a metodologia, limites e reprodutibilidade completa em [BENCHMARKS.md](docs/BENCHMARKS.md). Para executar o harness reproduzível:
 ```powershell
@@ -55,10 +55,10 @@ Consulte a metodologia, limites e reprodutibilidade completa em [BENCHMARKS.md](
 ## Compatibilidade externa — validação Spark / Cobrix
 
 Validação diferencial independente de exatidão semântica (não benchmark de desempenho):
-- Processamento de dataset realista sintetizado com GnuCOBOL (`input.ebcdic`, 100 registros de 24 bytes com texto CP037 e decimais compactados COMP-3).
+- Processamento de fixture realista gerada externamente com GnuCOBOL (`input.ebcdic`, 100 registros de 24 bytes, 2.400 bytes, SHA-256 fixada, com texto CP037 e decimais compactados COMP-3; não extraída de produção).
 - Decodificação independente pelo conector oficial **AbsaOSS Cobrix 2.9.4** sobre **Apache Spark 4.0.1** (Java 17, Ubuntu 24.04 LTS via WSL2).
-- Comparação semântica campo a campo via [`scripts/compare_cobrix.py`](scripts/compare_cobrix.py): **100/100 registros idênticos** após normalização de tipos (`int32` vs `decimal128(9,0)`).
-- Relatório completo e declaração técnica formal em [EXTERNAL_COMPATIBILITY.md](docs/EXTERNAL_COMPATIBILITY.md).
+- Comparação semântica campo a campo via [`scripts/compare_cobrix.py`](scripts/compare_cobrix.py): **100/100 registros idênticos** após validação explícita de esquema e escala decimal (`int32` vs `decimal128(9,0)` para ID, `decimal128(9,2)` para valor).
+- Não constitui teste de desempenho, não utiliza dados proprietários de produção e não implica compatibilidade universal com COBOL. Relatório completo e instruções formais em [EXTERNAL_COMPATIBILITY.md](docs/EXTERNAL_COMPATIBILITY.md).
 
 ## Base de conversão
 

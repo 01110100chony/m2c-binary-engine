@@ -1,29 +1,41 @@
 {
   "schema_version": 1,
-  "generated_at": "2026-09-06T23:48:44.0196759-03:00",
+  "generated_at": "2026-09-07T01:04:07.0204321-03:00",
   "profile": "full",
   "git": {
-    "commit": "62e581902270600ac03f315678bfa2acbeaee3b6",
+    "commit": "326069aa7d1d9f26e3a68191d3a697f3c87ed5c9",
     "branch": "m6-v.1.5-benches",
-    "dirty": true
+    "dirty": false,
+    "benchmark_harness_sha256": "89E7478D9940CC444F21E1F0993D3E08AC82680E9FB375FCB43E509ECEB2EE18",
+    "report_generator_sha256": "99C0ED6FA94C43B3C7DC9BC78BC815DE1C9111B596A8B029E38D22CBF6A51CBC"
   },
   "host": {
-    "os": "Microsoft Windows NT 10.0.19045.0",
+    "os_caption": "Microsoft Windows 10 Pro",
+    "os_version": "10.0.19045",
+    "os_build_number": "19045",
     "architecture": "AMD64",
-    "cpu_model": "AMD64 Family 23 Model 24 Stepping 1, AuthenticAMD",
-    "logical_processors": 8,
-    "total_memory_bytes": 17098760192,
-    "total_memory_gib": 15.92
+    "cpu_name": "AMD Ryzen 5 3400G with Radeon Vega Graphics",
+    "number_of_cores": 4,
+    "number_of_logical_processors": 8,
+    "total_physical_memory_bytes": 17098760192,
+    "total_physical_memory_gib": 15.92,
+    "filesystem": "NTFS",
+    "volume_type": "Fixed",
+    "storage_media_type": "SSD"
   },
   "toolchain": {
     "rustc_verbose": "rustc 1.95.0 (59807616e 2026-04-14)\nbinary: rustc\ncommit-hash: 59807616e1fa2540724bfbac14d7976d7e4a3860\ncommit-date: 2026-04-14\nhost: x86_64-pc-windows-msvc\nrelease: 1.95.0\nLLVM version: 22.1.2",
     "cargo": "cargo 1.95.0 (f2d3ce0bd 2026-03-21)",
     "target": "x86_64-pc-windows-msvc",
     "build_profile": "release",
+    "lto": false,
+    "opt_level": 3,
+    "codegen_units": "default",
+    "note": "Standard Cargo release optimization, no LTO configured in Cargo.toml",
     "features": [
       "pqc"
     ],
-    "binary_sha256": "DF843DBE2A2A3FF7C8F7820A0047E6928A3760106822D0E989141B7AAF25BAC5",
+    "binary_sha256": "047939068BC7EBDB1342454CF020A9756B93788582456B3C51E0D819C9522430",
     "verifier_sha256": "1B381AE7E6E8FDB1F7C1023834BCBFEE4997779B84F6CD9E4FB1311421964ADC"
   },
   "benchmarks": [
@@ -34,56 +46,71 @@
       "record_length": 35,
       "batch_records": 256,
       "input_bytes": 35000000,
+      "input_sha256": "1F8DBE179AC2F37F56AD6E1501296F11435D86EF711177097E242FC933957F4B",
+      "copybook_sha256": "F8598241229D2CBC107FD6664963E733D1E9EE4269361ECAE82E0B95E2A661D7",
+      "source_fixture_sha256": "BC5083614C9C50322A78EA30B909FABB28D63A22F0D4BDA87F77DFD49E47FB73",
+      "dataset_design": "deterministic repetition of tests/fixtures/sample_fixed.bin",
       "warmup_runs": 1,
       "measured_runs": 5,
       "runs": [
         {
           "iteration": 1,
-          "wall_clock_elapsed_ms": 1168.716,
-          "internal_elapsed_ms": 1056,
-          "observed_peak_working_set_bytes": 49897472,
-          "exit_code": 0
+          "wall_clock_elapsed_ms": 1361.3255,
+          "internal_elapsed_ms": 862,
+          "observed_peak_working_set_bytes": 49987584,
+          "exit_code": 0,
+          "verified": true,
+          "verification_method": "independent-oracle-parquet"
         },
         {
           "iteration": 2,
-          "wall_clock_elapsed_ms": 2407.2781,
-          "internal_elapsed_ms": 2311,
-          "observed_peak_working_set_bytes": 49901568,
-          "exit_code": 0
+          "wall_clock_elapsed_ms": 1314.7195,
+          "internal_elapsed_ms": 1181,
+          "observed_peak_working_set_bytes": 31776768,
+          "exit_code": 0,
+          "verified": true,
+          "verification_method": "independent-oracle-parquet"
         },
         {
           "iteration": 3,
-          "wall_clock_elapsed_ms": 1020.035,
-          "internal_elapsed_ms": 924,
-          "observed_peak_working_set_bytes": 49815552,
-          "exit_code": 0
+          "wall_clock_elapsed_ms": 1403.2197,
+          "internal_elapsed_ms": 841,
+          "observed_peak_working_set_bytes": 50089984,
+          "exit_code": 0,
+          "verified": true,
+          "verification_method": "independent-oracle-parquet"
         },
         {
           "iteration": 4,
-          "wall_clock_elapsed_ms": 935.5238,
-          "internal_elapsed_ms": 848,
-          "observed_peak_working_set_bytes": 49803264,
-          "exit_code": 0
+          "wall_clock_elapsed_ms": 1160.7317,
+          "internal_elapsed_ms": 985,
+          "observed_peak_working_set_bytes": 49872896,
+          "exit_code": 0,
+          "verified": true,
+          "verification_method": "independent-oracle-parquet"
         },
         {
           "iteration": 5,
-          "wall_clock_elapsed_ms": 1189.8667,
-          "internal_elapsed_ms": 1092,
-          "observed_peak_working_set_bytes": 50077696,
-          "exit_code": 0
+          "wall_clock_elapsed_ms": 1118.4472,
+          "internal_elapsed_ms": 985,
+          "observed_peak_working_set_bytes": 50008064,
+          "exit_code": 0,
+          "verified": true,
+          "verification_method": "independent-oracle-parquet"
         }
       ],
-      "median_wall_clock_elapsed_ms": 1168.72,
-      "min_wall_clock_elapsed_ms": 935.52,
-      "max_wall_clock_elapsed_ms": 2407.28,
-      "mean_wall_clock_elapsed_ms": 1344.28,
-      "median_internal_elapsed_ms": 1056,
-      "records_per_second": 855639.86,
-      "input_mib_per_second": 28.56,
-      "input_mb_per_second": 29.95,
-      "observed_peak_working_set_bytes": 50077696.0,
-      "observed_peak_working_set_mib": 47.76,
-      "verified": true
+      "median_wall_clock_elapsed_ms": 1314.72,
+      "min_wall_clock_elapsed_ms": 1118.45,
+      "max_wall_clock_elapsed_ms": 1403.22,
+      "mean_wall_clock_elapsed_ms": 1271.69,
+      "median_internal_elapsed_ms": 985,
+      "records_per_second": 760618.52,
+      "input_mib_per_second": 25.39,
+      "input_mb_per_second": 26.62,
+      "observed_peak_working_set_bytes": 50089984.0,
+      "observed_peak_working_set_mib": 47.77,
+      "verified": true,
+      "verification_method": "independent-oracle-parquet"
     },
     {
       "benchmark": "m3-convert",
@@ -92,56 +119,71 @@
       "record_length": 35,
       "batch_records": 4096,
       "input_bytes": 35000000,
+      "input_sha256": "1F8DBE179AC2F37F56AD6E1501296F11435D86EF711177097E242FC933957F4B",
+      "copybook_sha256": "F8598241229D2CBC107FD6664963E733D1E9EE4269361ECAE82E0B95E2A661D7",
+      "source_fixture_sha256": "BC5083614C9C50322A78EA30B909FABB28D63A22F0D4BDA87F77DFD49E47FB73",
+      "dataset_design": "deterministic repetition of tests/fixtures/sample_fixed.bin",
       "warmup_runs": 1,
       "measured_runs": 5,
       "runs": [
         {
           "iteration": 1,
-          "wall_clock_elapsed_ms": 551.9308,
-          "internal_elapsed_ms": 458,
-          "observed_peak_working_set_bytes": 8212480,
-          "exit_code": 0
+          "wall_clock_elapsed_ms": 534.024,
+          "internal_elapsed_ms": 444,
+          "observed_peak_working_set_bytes": 8716288,
+          "exit_code": 0,
+          "verified": true,
+          "verification_method": "independent-oracle-parquet"
         },
         {
           "iteration": 2,
-          "wall_clock_elapsed_ms": 518.1979,
-          "internal_elapsed_ms": 429,
-          "observed_peak_working_set_bytes": 8728576,
-          "exit_code": 0
+          "wall_clock_elapsed_ms": 716.6068,
+          "internal_elapsed_ms": 617,
+          "observed_peak_working_set_bytes": 8667136,
+          "exit_code": 0,
+          "verified": true,
+          "verification_method": "independent-oracle-parquet"
         },
         {
           "iteration": 3,
-          "wall_clock_elapsed_ms": 513.1346,
-          "internal_elapsed_ms": 424,
-          "observed_peak_working_set_bytes": 8679424,
-          "exit_code": 0
+          "wall_clock_elapsed_ms": 663.1267,
+          "internal_elapsed_ms": 568,
+          "observed_peak_working_set_bytes": 8716288,
+          "exit_code": 0,
+          "verified": true,
+          "verification_method": "independent-oracle-parquet"
         },
         {
           "iteration": 4,
-          "wall_clock_elapsed_ms": 539.7449,
-          "internal_elapsed_ms": 452,
-          "observed_peak_working_set_bytes": 8736768,
-          "exit_code": 0
+          "wall_clock_elapsed_ms": 572.2584,
+          "internal_elapsed_ms": 476,
+          "observed_peak_working_set_bytes": 8151040,
+          "exit_code": 0,
+          "verified": true,
+          "verification_method": "independent-oracle-parquet"
         },
         {
           "iteration": 5,
-          "wall_clock_elapsed_ms": 608.9266,
-          "internal_elapsed_ms": 516,
-          "observed_peak_working_set_bytes": 8720384,
-          "exit_code": 0
+          "wall_clock_elapsed_ms": 863.3401,
+          "internal_elapsed_ms": 751,
+          "observed_peak_working_set_bytes": 8667136,
+          "exit_code": 0,
+          "verified": true,
+          "verification_method": "independent-oracle-parquet"
         }
       ],
-      "median_wall_clock_elapsed_ms": 539.74,
-      "min_wall_clock_elapsed_ms": 513.13,
-      "max_wall_clock_elapsed_ms": 608.93,
-      "mean_wall_clock_elapsed_ms": 546.39,
-      "median_internal_elapsed_ms": 452,
-      "records_per_second": 1852727.09,
-      "input_mib_per_second": 61.84,
-      "input_mb_per_second": 64.85,
-      "observed_peak_working_set_bytes": 8736768.0,
-      "observed_peak_working_set_mib": 8.33,
-      "verified": true
+      "median_wall_clock_elapsed_ms": 663.13,
+      "min_wall_clock_elapsed_ms": 534.02,
+      "max_wall_clock_elapsed_ms": 863.34,
+      "mean_wall_clock_elapsed_ms": 669.87,
+      "median_internal_elapsed_ms": 568,
+      "records_per_second": 1508007.44,
+      "input_mib_per_second": 50.34,
+      "input_mb_per_second": 52.78,
+      "observed_peak_working_set_bytes": 8716288.0,
+      "observed_peak_working_set_mib": 8.31,
+      "verified": true,
+      "verification_method": "independent-oracle-parquet"
     },
     {
       "benchmark": "m3-convert",
@@ -150,56 +192,71 @@
       "record_length": 35,
       "batch_records": 65536,
       "input_bytes": 35000000,
+      "input_sha256": "1F8DBE179AC2F37F56AD6E1501296F11435D86EF711177097E242FC933957F4B",
+      "copybook_sha256": "F8598241229D2CBC107FD6664963E733D1E9EE4269361ECAE82E0B95E2A661D7",
+      "source_fixture_sha256": "BC5083614C9C50322A78EA30B909FABB28D63A22F0D4BDA87F77DFD49E47FB73",
+      "dataset_design": "deterministic repetition of tests/fixtures/sample_fixed.bin",
       "warmup_runs": 1,
       "measured_runs": 5,
       "runs": [
         {
           "iteration": 1,
-          "wall_clock_elapsed_ms": 482.1961,
-          "internal_elapsed_ms": 389,
-          "observed_peak_working_set_bytes": 15433728,
-          "exit_code": 0
+          "wall_clock_elapsed_ms": 1000.4429,
+          "internal_elapsed_ms": 862,
+          "observed_peak_working_set_bytes": 15491072,
+          "exit_code": 0,
+          "verified": true,
+          "verification_method": "independent-oracle-parquet"
         },
         {
           "iteration": 2,
-          "wall_clock_elapsed_ms": 481.8644,
-          "internal_elapsed_ms": 389,
-          "observed_peak_working_set_bytes": 15413248,
-          "exit_code": 0
+          "wall_clock_elapsed_ms": 479.9837,
+          "internal_elapsed_ms": 383,
+          "observed_peak_working_set_bytes": 15360000,
+          "exit_code": 0,
+          "verified": true,
+          "verification_method": "independent-oracle-parquet"
         },
         {
           "iteration": 3,
-          "wall_clock_elapsed_ms": 609.8056,
-          "internal_elapsed_ms": 515,
-          "observed_peak_working_set_bytes": 15413248,
-          "exit_code": 0
+          "wall_clock_elapsed_ms": 1644.3811,
+          "internal_elapsed_ms": 1544,
+          "observed_peak_working_set_bytes": 15486976,
+          "exit_code": 0,
+          "verified": true,
+          "verification_method": "independent-oracle-parquet"
         },
         {
           "iteration": 4,
-          "wall_clock_elapsed_ms": 486.7614,
-          "internal_elapsed_ms": 398,
-          "observed_peak_working_set_bytes": 15429632,
-          "exit_code": 0
+          "wall_clock_elapsed_ms": 1515.0696,
+          "internal_elapsed_ms": 603,
+          "observed_peak_working_set_bytes": 15360000,
+          "exit_code": 0,
+          "verified": true,
+          "verification_method": "independent-oracle-parquet"
         },
         {
           "iteration": 5,
-          "wall_clock_elapsed_ms": 493.8231,
-          "internal_elapsed_ms": 401,
-          "observed_peak_working_set_bytes": 15405056,
-          "exit_code": 0
+          "wall_clock_elapsed_ms": 503.7686,
+          "internal_elapsed_ms": 405,
+          "observed_peak_working_set_bytes": 15511552,
+          "exit_code": 0,
+          "verified": true,
+          "verification_method": "independent-oracle-parquet"
         }
       ],
-      "median_wall_clock_elapsed_ms": 486.76,
-      "min_wall_clock_elapsed_ms": 481.86,
-      "max_wall_clock_elapsed_ms": 609.81,
-      "mean_wall_clock_elapsed_ms": 510.89,
-      "median_internal_elapsed_ms": 398,
-      "records_per_second": 2054394.62,
-      "input_mib_per_second": 68.57,
-      "input_mb_per_second": 71.9,
-      "observed_peak_working_set_bytes": 15433728.0,
-      "observed_peak_working_set_mib": 14.72,
-      "verified": true
+      "median_wall_clock_elapsed_ms": 1000.44,
+      "min_wall_clock_elapsed_ms": 479.98,
+      "max_wall_clock_elapsed_ms": 1644.38,
+      "mean_wall_clock_elapsed_ms": 1028.73,
+      "median_internal_elapsed_ms": 603,
+      "records_per_second": 999557.3,
+      "input_mib_per_second": 33.36,
+      "input_mb_per_second": 34.98,
+      "observed_peak_working_set_bytes": 15511552.0,
+      "observed_peak_working_set_mib": 14.79,
+      "verified": true,
+      "verification_method": "independent-oracle-parquet"
     },
     {
       "benchmark": "m3-convert",
@@ -208,56 +265,71 @@
       "record_length": 35,
       "batch_records": 256,
       "input_bytes": 105000000,
+      "input_sha256": "C43DE618509C90F43A858E41159B35F46500AE70C64CA1B4249483BA3793848E",
+      "copybook_sha256": "F8598241229D2CBC107FD6664963E733D1E9EE4269361ECAE82E0B95E2A661D7",
+      "source_fixture_sha256": "BC5083614C9C50322A78EA30B909FABB28D63A22F0D4BDA87F77DFD49E47FB73",
+      "dataset_design": "deterministic repetition of tests/fixtures/sample_fixed.bin",
       "warmup_runs": 1,
       "measured_runs": 5,
       "runs": [
         {
           "iteration": 1,
-          "wall_clock_elapsed_ms": 7386.707,
-          "internal_elapsed_ms": 7290,
-          "observed_peak_working_set_bytes": 138276864,
-          "exit_code": 0
+          "wall_clock_elapsed_ms": 14809.9505,
+          "internal_elapsed_ms": 14224,
+          "observed_peak_working_set_bytes": 138125312,
+          "exit_code": 0,
+          "verified": true,
+          "verification_method": "independent-oracle-parquet"
         },
         {
           "iteration": 2,
-          "wall_clock_elapsed_ms": 4730.5174,
-          "internal_elapsed_ms": 4634,
-          "observed_peak_working_set_bytes": 138264576,
-          "exit_code": 0
+          "wall_clock_elapsed_ms": 12471.7161,
+          "internal_elapsed_ms": 11457,
+          "observed_peak_working_set_bytes": 138014720,
+          "exit_code": 0,
+          "verified": true,
+          "verification_method": "independent-oracle-parquet"
         },
         {
           "iteration": 3,
-          "wall_clock_elapsed_ms": 4928.858,
-          "internal_elapsed_ms": 4835,
-          "observed_peak_working_set_bytes": 138076160,
-          "exit_code": 0
+          "wall_clock_elapsed_ms": 21273.0533,
+          "internal_elapsed_ms": 21152,
+          "observed_peak_working_set_bytes": 138600448,
+          "exit_code": 0,
+          "verified": true,
+          "verification_method": "independent-oracle-parquet"
         },
         {
           "iteration": 4,
-          "wall_clock_elapsed_ms": 2604.6449,
-          "internal_elapsed_ms": 2510,
-          "observed_peak_working_set_bytes": 137555968,
-          "exit_code": 0
+          "wall_clock_elapsed_ms": 5178.1635,
+          "internal_elapsed_ms": 5079,
+          "observed_peak_working_set_bytes": 138280960,
+          "exit_code": 0,
+          "verified": true,
+          "verification_method": "independent-oracle-parquet"
         },
         {
           "iteration": 5,
-          "wall_clock_elapsed_ms": 2681.5105,
-          "internal_elapsed_ms": 2585,
-          "observed_peak_working_set_bytes": 138272768,
-          "exit_code": 0
+          "wall_clock_elapsed_ms": 2592.1079,
+          "internal_elapsed_ms": 2430,
+          "observed_peak_working_set_bytes": 138108928,
+          "exit_code": 0,
+          "verified": true,
+          "verification_method": "independent-oracle-parquet"
         }
       ],
-      "median_wall_clock_elapsed_ms": 4730.52,
-      "min_wall_clock_elapsed_ms": 2604.64,
-      "max_wall_clock_elapsed_ms": 7386.71,
-      "mean_wall_clock_elapsed_ms": 4466.45,
-      "median_internal_elapsed_ms": 4634,
-      "records_per_second": 634180.1,
-      "input_mib_per_second": 21.17,
-      "input_mb_per_second": 22.2,
-      "observed_peak_working_set_bytes": 138276864.0,
-      "observed_peak_working_set_mib": 131.87,
-      "verified": true
+      "median_wall_clock_elapsed_ms": 12471.72,
+      "min_wall_clock_elapsed_ms": 2592.11,
+      "max_wall_clock_elapsed_ms": 21273.05,
+      "mean_wall_clock_elapsed_ms": 11265.0,
+      "median_internal_elapsed_ms": 11457,
+      "records_per_second": 240544.28,
+      "input_mib_per_second": 8.03,
+      "input_mb_per_second": 8.42,
+      "observed_peak_working_set_bytes": 138600448.0,
+      "observed_peak_working_set_mib": 132.18,
+      "verified": true,
+      "verification_method": "independent-oracle-parquet"
     },
     {
       "benchmark": "m3-convert",
@@ -266,56 +338,71 @@
       "record_length": 35,
       "batch_records": 4096,
       "input_bytes": 105000000,
+      "input_sha256": "C43DE618509C90F43A858E41159B35F46500AE70C64CA1B4249483BA3793848E",
+      "copybook_sha256": "F8598241229D2CBC107FD6664963E733D1E9EE4269361ECAE82E0B95E2A661D7",
+      "source_fixture_sha256": "BC5083614C9C50322A78EA30B909FABB28D63A22F0D4BDA87F77DFD49E47FB73",
+      "dataset_design": "deterministic repetition of tests/fixtures/sample_fixed.bin",
       "warmup_runs": 1,
       "measured_runs": 5,
       "runs": [
         {
           "iteration": 1,
-          "wall_clock_elapsed_ms": 1308.816,
-          "internal_elapsed_ms": 1214,
-          "observed_peak_working_set_bytes": 13131776,
-          "exit_code": 0
+          "wall_clock_elapsed_ms": 2803.7734,
+          "internal_elapsed_ms": 2709,
+          "observed_peak_working_set_bytes": 14610432,
+          "exit_code": 0,
+          "verified": true,
+          "verification_method": "independent-oracle-parquet"
         },
         {
           "iteration": 2,
-          "wall_clock_elapsed_ms": 8070.3052,
-          "internal_elapsed_ms": 7979,
-          "observed_peak_working_set_bytes": 14659584,
-          "exit_code": 0
+          "wall_clock_elapsed_ms": 6304.7232,
+          "internal_elapsed_ms": 6009,
+          "observed_peak_working_set_bytes": 14524416,
+          "exit_code": 0,
+          "verified": true,
+          "verification_method": "independent-oracle-parquet"
         },
         {
           "iteration": 3,
-          "wall_clock_elapsed_ms": 2429.1108,
-          "internal_elapsed_ms": 2332,
-          "observed_peak_working_set_bytes": 14569472,
-          "exit_code": 0
+          "wall_clock_elapsed_ms": 1640.9939,
+          "internal_elapsed_ms": 1542,
+          "observed_peak_working_set_bytes": 14454784,
+          "exit_code": 0,
+          "verified": true,
+          "verification_method": "independent-oracle-parquet"
         },
         {
           "iteration": 4,
-          "wall_clock_elapsed_ms": 1492.7125,
-          "internal_elapsed_ms": 1400,
-          "observed_peak_working_set_bytes": 14569472,
-          "exit_code": 0
+          "wall_clock_elapsed_ms": 2148.7872,
+          "internal_elapsed_ms": 2051,
+          "observed_peak_working_set_bytes": 14438400,
+          "exit_code": 0,
+          "verified": true,
+          "verification_method": "independent-oracle-parquet"
         },
         {
           "iteration": 5,
-          "wall_clock_elapsed_ms": 2059.2045,
-          "internal_elapsed_ms": 1972,
-          "observed_peak_working_set_bytes": 14524416,
-          "exit_code": 0
+          "wall_clock_elapsed_ms": 2048.7052,
+          "internal_elapsed_ms": 1950,
+          "observed_peak_working_set_bytes": 14598144,
+          "exit_code": 0,
+          "verified": true,
+          "verification_method": "independent-oracle-parquet"
         }
       ],
-      "median_wall_clock_elapsed_ms": 2059.2,
-      "min_wall_clock_elapsed_ms": 1308.82,
-      "max_wall_clock_elapsed_ms": 8070.31,
-      "mean_wall_clock_elapsed_ms": 3072.03,
-      "median_internal_elapsed_ms": 1972,
-      "records_per_second": 1456873.27,
-      "input_mib_per_second": 48.63,
-      "input_mb_per_second": 50.99,
-      "observed_peak_working_set_bytes": 14659584.0,
-      "observed_peak_working_set_mib": 13.98,
-      "verified": true
+      "median_wall_clock_elapsed_ms": 2148.79,
+      "min_wall_clock_elapsed_ms": 1640.99,
+      "max_wall_clock_elapsed_ms": 6304.72,
+      "mean_wall_clock_elapsed_ms": 2989.4,
+      "median_internal_elapsed_ms": 2051,
+      "records_per_second": 1396136.39,
+      "input_mib_per_second": 46.6,
+      "input_mb_per_second": 48.86,
+      "observed_peak_working_set_bytes": 14610432.0,
+      "observed_peak_working_set_mib": 13.93,
+      "verified": true,
+      "verification_method": "independent-oracle-parquet"
     },
     {
       "benchmark": "m3-convert",
@@ -324,56 +411,71 @@
       "record_length": 35,
       "batch_records": 65536,
       "input_bytes": 105000000,
+      "input_sha256": "C43DE618509C90F43A858E41159B35F46500AE70C64CA1B4249483BA3793848E",
+      "copybook_sha256": "F8598241229D2CBC107FD6664963E733D1E9EE4269361ECAE82E0B95E2A661D7",
+      "source_fixture_sha256": "BC5083614C9C50322A78EA30B909FABB28D63A22F0D4BDA87F77DFD49E47FB73",
+      "dataset_design": "deterministic repetition of tests/fixtures/sample_fixed.bin",
       "warmup_runs": 1,
       "measured_runs": 5,
       "runs": [
         {
           "iteration": 1,
-          "wall_clock_elapsed_ms": 3834.3275,
-          "internal_elapsed_ms": 3743,
-          "observed_peak_working_set_bytes": 15884288,
-          "exit_code": 0
+          "wall_clock_elapsed_ms": 1976.5298,
+          "internal_elapsed_ms": 1836,
+          "observed_peak_working_set_bytes": 15974400,
+          "exit_code": 0,
+          "verified": true,
+          "verification_method": "independent-oracle-parquet"
         },
         {
           "iteration": 2,
-          "wall_clock_elapsed_ms": 2016.6707,
-          "internal_elapsed_ms": 1924,
-          "observed_peak_working_set_bytes": 15835136,
-          "exit_code": 0
+          "wall_clock_elapsed_ms": 2271.1828,
+          "internal_elapsed_ms": 1245,
+          "observed_peak_working_set_bytes": 15998976,
+          "exit_code": 0,
+          "verified": true,
+          "verification_method": "independent-oracle-parquet"
         },
         {
           "iteration": 3,
-          "wall_clock_elapsed_ms": 2493.5358,
-          "internal_elapsed_ms": 2402,
-          "observed_peak_working_set_bytes": 15716352,
-          "exit_code": 0
+          "wall_clock_elapsed_ms": 2096.4501,
+          "internal_elapsed_ms": 2000,
+          "observed_peak_working_set_bytes": 15859712,
+          "exit_code": 0,
+          "verified": true,
+          "verification_method": "independent-oracle-parquet"
         },
         {
           "iteration": 4,
-          "wall_clock_elapsed_ms": 1277.4035,
-          "internal_elapsed_ms": 1186,
-          "observed_peak_working_set_bytes": 15814656,
-          "exit_code": 0
+          "wall_clock_elapsed_ms": 4596.1943,
+          "internal_elapsed_ms": 4498,
+          "observed_peak_working_set_bytes": 15990784,
+          "exit_code": 0,
+          "verified": true,
+          "verification_method": "independent-oracle-parquet"
         },
         {
           "iteration": 5,
-          "wall_clock_elapsed_ms": 1267.5383,
-          "internal_elapsed_ms": 1175,
-          "observed_peak_working_set_bytes": 15982592,
-          "exit_code": 0
+          "wall_clock_elapsed_ms": 1291.0107,
+          "internal_elapsed_ms": 1191,
+          "observed_peak_working_set_bytes": 15794176,
+          "exit_code": 0,
+          "verified": true,
+          "verification_method": "independent-oracle-parquet"
         }
       ],
-      "median_wall_clock_elapsed_ms": 2016.67,
-      "min_wall_clock_elapsed_ms": 1267.54,
-      "max_wall_clock_elapsed_ms": 3834.33,
-      "mean_wall_clock_elapsed_ms": 2177.9,
-      "median_internal_elapsed_ms": 1924,
-      "records_per_second": 1487600.33,
-      "input_mib_per_second": 49.65,
-      "input_mb_per_second": 52.07,
-      "observed_peak_working_set_bytes": 15982592.0,
-      "observed_peak_working_set_mib": 15.24,
-      "verified": true
+      "median_wall_clock_elapsed_ms": 2096.45,
+      "min_wall_clock_elapsed_ms": 1291.01,
+      "max_wall_clock_elapsed_ms": 4596.19,
+      "mean_wall_clock_elapsed_ms": 2446.27,
+      "median_internal_elapsed_ms": 1836,
+      "records_per_second": 1430990.42,
+      "input_mib_per_second": 47.76,
+      "input_mb_per_second": 50.08,
+      "observed_peak_working_set_bytes": 15998976.0,
+      "observed_peak_working_set_mib": 15.26,
+      "verified": true,
+      "verification_method": "independent-oracle-parquet"
     },
     {
       "benchmark": "m4-convert-parts",
@@ -383,61 +485,76 @@
       "batch_records": 4096,
       "parts": 733.0,
       "input_bytes": 105000000,
+      "input_sha256": "C43DE618509C90F43A858E41159B35F46500AE70C64CA1B4249483BA3793848E",
+      "copybook_sha256": "F8598241229D2CBC107FD6664963E733D1E9EE4269361ECAE82E0B95E2A661D7",
+      "source_fixture_sha256": "BC5083614C9C50322A78EA30B909FABB28D63A22F0D4BDA87F77DFD49E47FB73",
+      "dataset_design": "deterministic repetition of tests/fixtures/sample_fixed.bin",
       "warmup_runs": 1,
       "measured_runs": 5,
       "runs": [
         {
           "iteration": 1,
-          "wall_clock_elapsed_ms": 13916.3906,
-          "internal_elapsed_ms": 13814,
-          "observed_peak_working_set_bytes": 7331840,
+          "wall_clock_elapsed_ms": 97262.727,
+          "internal_elapsed_ms": 96969,
+          "observed_peak_working_set_bytes": 7131136,
           "exit_code": 0,
-          "parts": 733
+          "parts": 733,
+          "verified": true,
+          "verification_method": "independent-oracle-m4-manifest-receipts"
         },
         {
           "iteration": 2,
-          "wall_clock_elapsed_ms": 13268.2756,
-          "internal_elapsed_ms": 13170,
-          "observed_peak_working_set_bytes": 7356416,
+          "wall_clock_elapsed_ms": 343933.5529,
+          "internal_elapsed_ms": 343835,
+          "observed_peak_working_set_bytes": 7213056,
           "exit_code": 0,
-          "parts": 733
+          "parts": 733,
+          "verified": true,
+          "verification_method": "independent-oracle-m4-manifest-receipts"
         },
         {
           "iteration": 3,
-          "wall_clock_elapsed_ms": 13424.3408,
-          "internal_elapsed_ms": 13253,
-          "observed_peak_working_set_bytes": 7200768,
+          "wall_clock_elapsed_ms": 291058.8551,
+          "internal_elapsed_ms": 290946,
+          "observed_peak_working_set_bytes": 7135232,
           "exit_code": 0,
-          "parts": 733
+          "parts": 733,
+          "verified": true,
+          "verification_method": "independent-oracle-m4-manifest-receipts"
         },
         {
           "iteration": 4,
-          "wall_clock_elapsed_ms": 12648.5088,
-          "internal_elapsed_ms": 12557,
-          "observed_peak_working_set_bytes": 7200768,
+          "wall_clock_elapsed_ms": 376505.5487,
+          "internal_elapsed_ms": 375247,
+          "observed_peak_working_set_bytes": 7208960,
           "exit_code": 0,
-          "parts": 733
+          "parts": 733,
+          "verified": true,
+          "verification_method": "independent-oracle-m4-manifest-receipts"
         },
         {
           "iteration": 5,
-          "wall_clock_elapsed_ms": 60760.1666,
-          "internal_elapsed_ms": 60662,
-          "observed_peak_working_set_bytes": 7184384,
+          "wall_clock_elapsed_ms": 71131.269,
+          "internal_elapsed_ms": 68854,
+          "observed_peak_working_set_bytes": 7196672,
           "exit_code": 0,
-          "parts": 733
+          "parts": 733,
+          "verified": true,
+          "verification_method": "independent-oracle-m4-manifest-receipts"
         }
       ],
-      "median_wall_clock_elapsed_ms": 13424.34,
-      "min_wall_clock_elapsed_ms": 12648.51,
-      "max_wall_clock_elapsed_ms": 60760.17,
-      "mean_wall_clock_elapsed_ms": 22803.54,
-      "median_internal_elapsed_ms": 13253,
-      "records_per_second": 223474.66,
-      "input_mib_per_second": 7.46,
-      "input_mb_per_second": 7.82,
-      "observed_peak_working_set_bytes": 7356416.0,
-      "observed_peak_working_set_mib": 7.02,
-      "verified": true
+      "median_wall_clock_elapsed_ms": 291058.86,
+      "min_wall_clock_elapsed_ms": 71131.27,
+      "max_wall_clock_elapsed_ms": 376505.55,
+      "mean_wall_clock_elapsed_ms": 235978.39,
+      "median_internal_elapsed_ms": 290946,
+      "records_per_second": 10307.19,
+      "input_mib_per_second": 0.34,
+      "input_mb_per_second": 0.36,
+      "observed_peak_working_set_bytes": 7213056.0,
+      "observed_peak_working_set_mib": 6.88,
+      "verified": true,
+      "verification_method": "independent-oracle-m4-manifest-receipts"
     },
     {
       "benchmark": "m4-convert-parts",
@@ -447,169 +564,208 @@
       "batch_records": 65536,
       "parts": 46.0,
       "input_bytes": 105000000,
+      "input_sha256": "C43DE618509C90F43A858E41159B35F46500AE70C64CA1B4249483BA3793848E",
+      "copybook_sha256": "F8598241229D2CBC107FD6664963E733D1E9EE4269361ECAE82E0B95E2A661D7",
+      "source_fixture_sha256": "BC5083614C9C50322A78EA30B909FABB28D63A22F0D4BDA87F77DFD49E47FB73",
+      "dataset_design": "deterministic repetition of tests/fixtures/sample_fixed.bin",
       "warmup_runs": 1,
       "measured_runs": 5,
       "runs": [
         {
           "iteration": 1,
-          "wall_clock_elapsed_ms": 5791.9042,
-          "internal_elapsed_ms": 5699,
-          "observed_peak_working_set_bytes": 15982592,
+          "wall_clock_elapsed_ms": 7268.1171,
+          "internal_elapsed_ms": 7167,
+          "observed_peak_working_set_bytes": 15962112,
           "exit_code": 0,
-          "parts": 46
+          "parts": 46,
+          "verified": true,
+          "verification_method": "independent-oracle-m4-manifest-receipts"
         },
         {
           "iteration": 2,
-          "wall_clock_elapsed_ms": 6302.1437,
-          "internal_elapsed_ms": 6208,
-          "observed_peak_working_set_bytes": 16076800,
+          "wall_clock_elapsed_ms": 5049.9873,
+          "internal_elapsed_ms": 4952,
+          "observed_peak_working_set_bytes": 15953920,
           "exit_code": 0,
-          "parts": 46
+          "parts": 46,
+          "verified": true,
+          "verification_method": "independent-oracle-m4-manifest-receipts"
         },
         {
           "iteration": 3,
-          "wall_clock_elapsed_ms": 4735.5518,
-          "internal_elapsed_ms": 4643,
-          "observed_peak_working_set_bytes": 15970304,
+          "wall_clock_elapsed_ms": 5191.7097,
+          "internal_elapsed_ms": 5093,
+          "observed_peak_working_set_bytes": 15966208,
           "exit_code": 0,
-          "parts": 46
+          "parts": 46,
+          "verified": true,
+          "verification_method": "independent-oracle-m4-manifest-receipts"
         },
         {
           "iteration": 4,
-          "wall_clock_elapsed_ms": 4174.9911,
-          "internal_elapsed_ms": 4079,
-          "observed_peak_working_set_bytes": 15904768,
+          "wall_clock_elapsed_ms": 4476.2706,
+          "internal_elapsed_ms": 4369,
+          "observed_peak_working_set_bytes": 15929344,
           "exit_code": 0,
-          "parts": 46
+          "parts": 46,
+          "verified": true,
+          "verification_method": "independent-oracle-m4-manifest-receipts"
         },
         {
           "iteration": 5,
-          "wall_clock_elapsed_ms": 4333.2279,
-          "internal_elapsed_ms": 4244,
-          "observed_peak_working_set_bytes": 15974400,
+          "wall_clock_elapsed_ms": 4654.5369,
+          "internal_elapsed_ms": 4526,
+          "observed_peak_working_set_bytes": 15978496,
           "exit_code": 0,
-          "parts": 46
+          "parts": 46,
+          "verified": true,
+          "verification_method": "independent-oracle-m4-manifest-receipts"
         }
       ],
-      "median_wall_clock_elapsed_ms": 4735.55,
-      "min_wall_clock_elapsed_ms": 4174.99,
-      "max_wall_clock_elapsed_ms": 6302.14,
-      "mean_wall_clock_elapsed_ms": 5067.56,
-      "median_internal_elapsed_ms": 4643,
-      "records_per_second": 633505.9,
-      "input_mib_per_second": 21.15,
-      "input_mb_per_second": 22.17,
-      "observed_peak_working_set_bytes": 16076800.0,
-      "observed_peak_working_set_mib": 15.33,
-      "verified": true
+      "median_wall_clock_elapsed_ms": 5049.99,
+      "min_wall_clock_elapsed_ms": 4476.27,
+      "max_wall_clock_elapsed_ms": 7268.12,
+      "mean_wall_clock_elapsed_ms": 5328.12,
+      "median_internal_elapsed_ms": 4952,
+      "records_per_second": 594060.9,
+      "input_mib_per_second": 19.83,
+      "input_mb_per_second": 20.79,
+      "observed_peak_working_set_bytes": 15978496.0,
+      "observed_peak_working_set_mib": 15.24,
+      "verified": true,
+      "verification_method": "independent-oracle-m4-manifest-receipts"
     },
     {
       "benchmark": "m5-protect",
       "command": "protect",
       "payload_bytes": 67108864,
+      "payload_sha256": "07A1E6F3B84E57FBFFCBC20ED126F43CEEAEC19B8A1CDC0E63B3A75421E6DC54",
       "warmup_runs": 1,
       "measured_runs": 5,
       "runs": [
         {
           "iteration": 1,
-          "wall_clock_elapsed_ms": 14115.9151,
-          "internal_elapsed_ms": 14019,
-          "observed_peak_working_set_bytes": 5537792,
-          "exit_code": 0
+          "wall_clock_elapsed_ms": 3780.8423,
+          "internal_elapsed_ms": 3662,
+          "observed_peak_working_set_bytes": 5521408,
+          "exit_code": 0,
+          "verified": true,
+          "verification_method": "byte-for-byte"
         },
         {
           "iteration": 2,
-          "wall_clock_elapsed_ms": 2098.7748,
-          "internal_elapsed_ms": 2012,
-          "observed_peak_working_set_bytes": 5533696,
-          "exit_code": 0
+          "wall_clock_elapsed_ms": 7984.1779,
+          "internal_elapsed_ms": 7861,
+          "observed_peak_working_set_bytes": 5521408,
+          "exit_code": 0,
+          "verified": true,
+          "verification_method": "byte-for-byte"
         },
         {
           "iteration": 3,
-          "wall_clock_elapsed_ms": 389.1013,
-          "internal_elapsed_ms": 294,
-          "observed_peak_working_set_bytes": 5537792,
-          "exit_code": 0
+          "wall_clock_elapsed_ms": 1945.3248,
+          "internal_elapsed_ms": 1843,
+          "observed_peak_working_set_bytes": 5521408,
+          "exit_code": 0,
+          "verified": true,
+          "verification_method": "byte-for-byte"
         },
         {
           "iteration": 4,
-          "wall_clock_elapsed_ms": 1642.9183,
-          "internal_elapsed_ms": 1550,
-          "observed_peak_working_set_bytes": 5529600,
-          "exit_code": 0
+          "wall_clock_elapsed_ms": 7245.3404,
+          "internal_elapsed_ms": 7144,
+          "observed_peak_working_set_bytes": 5517312,
+          "exit_code": 0,
+          "verified": true,
+          "verification_method": "byte-for-byte"
         },
         {
           "iteration": 5,
-          "wall_clock_elapsed_ms": 1481.1531,
-          "internal_elapsed_ms": 1387,
-          "observed_peak_working_set_bytes": 5537792,
-          "exit_code": 0
+          "wall_clock_elapsed_ms": 5466.5769,
+          "internal_elapsed_ms": 5343,
+          "observed_peak_working_set_bytes": 5517312,
+          "exit_code": 0,
+          "verified": true,
+          "verification_method": "byte-for-byte"
         }
       ],
-      "median_wall_clock_elapsed_ms": 1642.92,
-      "min_wall_clock_elapsed_ms": 389.1,
-      "max_wall_clock_elapsed_ms": 14115.92,
-      "mean_wall_clock_elapsed_ms": 3945.57,
-      "median_internal_elapsed_ms": 1550,
-      "input_mib_per_second": 38.96,
-      "input_mb_per_second": 40.85,
-      "observed_peak_working_set_bytes": 5537792.0,
-      "observed_peak_working_set_mib": 5.28,
-      "verified": true
+      "median_wall_clock_elapsed_ms": 5466.58,
+      "min_wall_clock_elapsed_ms": 1945.32,
+      "max_wall_clock_elapsed_ms": 7984.18,
+      "mean_wall_clock_elapsed_ms": 5284.45,
+      "median_internal_elapsed_ms": 5343,
+      "input_mib_per_second": 11.71,
+      "input_mb_per_second": 12.28,
+      "observed_peak_working_set_bytes": 5521408.0,
+      "observed_peak_working_set_mib": 5.27,
+      "verified": true,
+      "verification_method": "byte-for-byte"
     },
     {
       "benchmark": "m5-unprotect",
       "command": "unprotect",
       "payload_bytes": 67108864,
+      "payload_sha256": "07A1E6F3B84E57FBFFCBC20ED126F43CEEAEC19B8A1CDC0E63B3A75421E6DC54",
       "warmup_runs": 1,
       "measured_runs": 5,
       "runs": [
         {
           "iteration": 1,
-          "wall_clock_elapsed_ms": 888.8349,
-          "internal_elapsed_ms": 798,
-          "observed_peak_working_set_bytes": 5529600,
-          "exit_code": 0
+          "wall_clock_elapsed_ms": 1019.1078,
+          "internal_elapsed_ms": 911,
+          "observed_peak_working_set_bytes": 5517312,
+          "exit_code": 0,
+          "verified": true,
+          "verification_method": "byte-for-byte"
         },
         {
           "iteration": 2,
-          "wall_clock_elapsed_ms": 1478.3964,
-          "internal_elapsed_ms": 1389,
-          "observed_peak_working_set_bytes": 5550080,
-          "exit_code": 0
+          "wall_clock_elapsed_ms": 1506.7583,
+          "internal_elapsed_ms": 1395,
+          "observed_peak_working_set_bytes": 5525504,
+          "exit_code": 0,
+          "verified": true,
+          "verification_method": "byte-for-byte"
         },
         {
           "iteration": 3,
-          "wall_clock_elapsed_ms": 1687.853,
-          "internal_elapsed_ms": 1597,
-          "observed_peak_working_set_bytes": 5545984,
-          "exit_code": 0
+          "wall_clock_elapsed_ms": 877.2532,
+          "internal_elapsed_ms": 766,
+          "observed_peak_working_set_bytes": 5529600,
+          "exit_code": 0,
+          "verified": true,
+          "verification_method": "byte-for-byte"
         },
         {
           "iteration": 4,
-          "wall_clock_elapsed_ms": 1771.1146,
-          "internal_elapsed_ms": 1679,
-          "observed_peak_working_set_bytes": 5545984,
-          "exit_code": 0
+          "wall_clock_elapsed_ms": 581.8576,
+          "internal_elapsed_ms": 461,
+          "observed_peak_working_set_bytes": 5529600,
+          "exit_code": 0,
+          "verified": true,
+          "verification_method": "byte-for-byte"
         },
         {
           "iteration": 5,
-          "wall_clock_elapsed_ms": 1826.1839,
-          "internal_elapsed_ms": 1726,
-          "observed_peak_working_set_bytes": 5541888,
-          "exit_code": 0
+          "wall_clock_elapsed_ms": 429.0182,
+          "internal_elapsed_ms": 335,
+          "observed_peak_working_set_bytes": 5529600,
+          "exit_code": 0,
+          "verified": true,
+          "verification_method": "byte-for-byte"
         }
       ],
-      "median_wall_clock_elapsed_ms": 1687.85,
-      "min_wall_clock_elapsed_ms": 888.83,
-      "max_wall_clock_elapsed_ms": 1826.18,
-      "mean_wall_clock_elapsed_ms": 1530.48,
-      "median_internal_elapsed_ms": 1597,
-      "input_mib_per_second": 37.92,
-      "input_mb_per_second": 39.76,
-      "observed_peak_working_set_bytes": 5550080.0,
-      "observed_peak_working_set_mib": 5.29,
-      "verified": true
+      "median_wall_clock_elapsed_ms": 877.25,
+      "min_wall_clock_elapsed_ms": 429.02,
+      "max_wall_clock_elapsed_ms": 1506.76,
+      "mean_wall_clock_elapsed_ms": 882.8,
+      "median_internal_elapsed_ms": 766,
+      "input_mib_per_second": 72.95,
+      "input_mb_per_second": 76.5,
+      "observed_peak_working_set_bytes": 5529600.0,
+      "observed_peak_working_set_mib": 5.27,
+      "verified": true,
+      "verification_method": "byte-for-byte"
     }
   ],
   "microbenchmarks": [
@@ -617,67 +773,85 @@
       "workload": "mixed",
       "operation": "compile",
       "samples": 7,
-      "median_ns_per_iteration": 22332,
-      "min_ns_per_iteration": 21759,
-      "max_ns_per_iteration": 22911,
+      "median_ns_per_iteration": 24834,
+      "min_ns_per_iteration": 23652,
+      "max_ns_per_iteration": 28553,
+      "mean_ns_per_iteration": 25234.29,
       "records_per_iteration": null,
       "records_per_second": null,
-      "input_bytes_per_iteration": 402
+      "input_bytes_per_iteration": 402,
+      "input_mib_per_second": 15.44,
+      "input_mb_per_second": 16.19
     },
     {
       "workload": "mixed",
       "operation": "decode",
       "samples": 7,
-      "median_ns_per_iteration": 153905,
-      "min_ns_per_iteration": 147782,
-      "max_ns_per_iteration": 159371,
+      "median_ns_per_iteration": 168367,
+      "min_ns_per_iteration": 157453,
+      "max_ns_per_iteration": 170592,
+      "mean_ns_per_iteration": 166336.57,
       "records_per_iteration": 768,
-      "records_per_second": 4990091.29,
-      "input_bytes_per_iteration": 26880
+      "records_per_second": 4561463.94,
+      "input_bytes_per_iteration": 26880,
+      "input_mib_per_second": 152.26,
+      "input_mb_per_second": 159.65
     },
     {
       "workload": "numeric",
       "operation": "compile",
       "samples": 7,
-      "median_ns_per_iteration": 10410,
-      "min_ns_per_iteration": 9951,
-      "max_ns_per_iteration": 10776,
+      "median_ns_per_iteration": 11673,
+      "min_ns_per_iteration": 10983,
+      "max_ns_per_iteration": 18837,
+      "mean_ns_per_iteration": 12656.57,
       "records_per_iteration": null,
       "records_per_second": null,
-      "input_bytes_per_iteration": 101
+      "input_bytes_per_iteration": 101,
+      "input_mib_per_second": 8.25,
+      "input_mb_per_second": 8.65
     },
     {
       "workload": "numeric",
       "operation": "decode",
       "samples": 7,
-      "median_ns_per_iteration": 17852,
-      "min_ns_per_iteration": 17459,
-      "max_ns_per_iteration": 18840,
+      "median_ns_per_iteration": 19208,
+      "min_ns_per_iteration": 17947,
+      "max_ns_per_iteration": 22631,
+      "mean_ns_per_iteration": 19335.71,
       "records_per_iteration": 256,
-      "records_per_second": 14340129.96,
-      "input_bytes_per_iteration": 1792
+      "records_per_second": 13327780.09,
+      "input_bytes_per_iteration": 1792,
+      "input_mib_per_second": 88.97,
+      "input_mb_per_second": 93.29
     },
     {
       "workload": "text",
       "operation": "compile",
       "samples": 7,
-      "median_ns_per_iteration": 3436,
-      "min_ns_per_iteration": 3287,
-      "max_ns_per_iteration": 3943,
+      "median_ns_per_iteration": 6078,
+      "min_ns_per_iteration": 5789,
+      "max_ns_per_iteration": 6432,
+      "mean_ns_per_iteration": 6066.0,
       "records_per_iteration": null,
       "records_per_second": null,
-      "input_bytes_per_iteration": 47
+      "input_bytes_per_iteration": 47,
+      "input_mib_per_second": 7.37,
+      "input_mb_per_second": 7.73
     },
     {
       "workload": "text",
       "operation": "decode",
       "samples": 7,
-      "median_ns_per_iteration": 6700,
-      "min_ns_per_iteration": 6365,
-      "max_ns_per_iteration": 7271,
+      "median_ns_per_iteration": 7098,
+      "min_ns_per_iteration": 6596,
+      "max_ns_per_iteration": 7306,
+      "mean_ns_per_iteration": 6980.71,
       "records_per_iteration": 256,
-      "records_per_second": 38208955.22,
-      "input_bytes_per_iteration": 1024
+      "records_per_second": 36066497.6,
+      "input_bytes_per_iteration": 1024,
+      "input_mib_per_second": 137.58,
+      "input_mb_per_second": 144.27
     }
   ]
 }
