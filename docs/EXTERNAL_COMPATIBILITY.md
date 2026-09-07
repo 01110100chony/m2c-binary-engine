@@ -20,16 +20,16 @@ This test provides correctness evidence only. It is **not** a benchmark comparin
 - **Article / Reference**: `articles/2025-12-mainframe-for-data-engineers/cobol-to-parquet`
 - **Pinned upstream commit / tree**: `da33252e98f47a836ba995e43de327b1d7034f3c` (branch `main`)
 
-### Generation Flow
-1. **Record synthesis**: Synthesized transaction records produced via GnuCOBOL fixed-format program.
-2. **Encoding step**: Text fields converted from ASCII to IBM CP037 EBCDIC byte values; COMP-3 packed decimals preserved in IBM-standard nibble format.
-3. **Output artifact**: `TRXN_COBOL_DATA.ebcdic` (named `input.ebcdic` in repository tests).
-
-### Validated Dataset Properties
-- **Total records**: 100
-- **Record length**: 24 bytes
-- **Total file size**: 2,400 bytes
-- **SHA-256 (`input.ebcdic`)**: `a292e8aa6317a247e2fa6091d054449914f21140a46ecfa83d02dff6b0098083`
+### Generation Flow and Reproducibility
+1. **Record synthesis**: The upstream Python generator script synthesizes transaction records using pseudo-random values (`random`) and system timestamps (`datetime.now()`). Because values depend on runtime entropy and execution time, re-running the upstream generation script is **not** byte-deterministic.
+2. **Pinned test fixture**: The exact input artifact validated here is permanently pinned by:
+   - **Total records**: 100
+   - **Record length**: 24 bytes
+   - **Total file size**: 2,400 bytes
+   - **SHA-256 (`input.ebcdic`)**: `a292e8aa6317a247e2fa6091d054449914f21140a46ecfa83d02dff6b0098083`
+   The existence of this pinned fixture guarantees exact reproducibility of the validation artifact, even though regeneration from the upstream script does not produce byte-identical data.
+3. **Encoding**: Text fields encoded in IBM CP037 EBCDIC; COMP-3 packed decimals in IBM-standard nibble format.
+4. **Output artifact**: `TRXN_COBOL_DATA.ebcdic` (named `input.ebcdic` in repository tests).
 
 ---
 
@@ -91,15 +91,28 @@ M2C v0.1 accepts equivalent supported explicit syntax in `layout.cpy`:
 - **Java Runtime**: OpenJDK 17.0.20
 - **Apache Spark**: Spark 4.0.1 (Scala 2.13.x)
 - **Cobrix Connector**: `za.co.absa.cobrix:spark-cobol_2.13:2.9.4`
-- **Cobrix Configuration**:
+- **Upstream Script Configuration**:
+  The upstream `cobol_to_parquet.py` executes Spark with:
   ```python
   df = spark.read.format("cobol") \
-      .option("copybook", "/tmp/copybook.cpy") \
-      .option("record_format", "F") \
-      .option("record_length", "24") \
-      .load("input.ebcdic")
-  df.write.mode("overwrite").parquet("cobrix_trxn_parquet")
+      .option("copybook", args.copybook) \
+      .option("record_length", args.record_length) \
+      .option("encoding", args.encoding) \
+      .load(args.input)
+  df.write.mode("overwrite").parquet(args.output)
   ```
+- **Actual Command Invocation**:
+  ```bash
+  spark-submit \
+    --packages za.co.absa.cobrix:spark-cobol_2.13:2.9.4 \
+    cobol_to_parquet.py \
+    --input TRXN_COBOL_DATA.ebcdic \
+    --copybook trxn_writer_simple.cpy \
+    --record-length 24 \
+    --encoding EBCDIC \
+    --output cobrix_trxn_parquet
+  ```
+  *(Note: Upstream uses default `--encoding EBCDIC` and specifies `--record-length 24`; no `record_format=F` option was used).*
 - **Observed Spark Schema**:
   - `TRXN_ID`: `integer` (`int32`, nullable)
   - `TRXN_DT`: `string` (nullable)

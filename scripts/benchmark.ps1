@@ -66,31 +66,71 @@ $gitBranch = (& git rev-parse --abbrev-ref HEAD).Trim()
 $gitStatus = @(& git status --short)
 $gitDirty = ($gitStatus.Count -gt 0)
 
+$harnessPath = if ($PSCommandPath) { $PSCommandPath } else { Join-Path $PSScriptRoot 'benchmark.ps1' }
+$harnessSha256 = if (Test-Path -LiteralPath $harnessPath) { (Get-FileHash -LiteralPath $harnessPath).Hash } else { $null }
+
+$renderScript = Join-Path $PSScriptRoot 'render_benchmarks.py'
+$renderSha256 = if (Test-Path -LiteralPath $renderScript) { (Get-FileHash -LiteralPath $renderScript).Hash } else { $null }
+
 $rustcVer = (& rustc -Vv) -join "`n"
 $cargoVer = (& cargo --version).Trim()
 
-$totalRamBytes = [GC]::GetGCMemoryInfo().TotalAvailableMemoryBytes
-$logicalCpus = [Environment]::ProcessorCount
+# Query Windows Hardware & OS via CIM (excluding usernames, hostnames, and UUIDs)
+$proc = Get-CimInstance Win32_Processor | Select-Object -First 1
+$cpuName = if ($proc -and $proc.Name) { $proc.Name.Trim() } else { $env:PROCESSOR_IDENTIFIER }
+$numCores = if ($proc -and $proc.NumberOfCores) { [int]$proc.NumberOfCores } else { $null }
+$logicalCpus = if ($proc -and $proc.NumberOfLogicalProcessors) { [int]$proc.NumberOfLogicalProcessors } else { [Environment]::ProcessorCount }
+
+$cs = Get-CimInstance Win32_ComputerSystem
+$totalPhysicalRamBytes = if ($cs -and $cs.TotalPhysicalMemory) { [long]$cs.TotalPhysicalMemory } else { [GC]::GetGCMemoryInfo().TotalAvailableMemoryBytes }
+$totalPhysicalRamGib = [Math]::Round($totalPhysicalRamBytes / 1GB, 2)
+
+$os = Get-CimInstance Win32_OperatingSystem
+$osCaption = if ($os -and $os.Caption) { $os.Caption.Trim() } else { [Environment]::OSVersion.ToString() }
+$osVersion = if ($os -and $os.Version) { $os.Version.Trim() } else { [Environment]::OSVersion.Version.ToString() }
+$osBuild = if ($os -and $os.BuildNumber) { $os.BuildNumber.Trim() } else { $null }
+
+# Storage information
+$repoDrive = (Get-Item -LiteralPath $repo).PSDrive.Name
+$vol = try { Get-Volume -DriveLetter $repoDrive -ErrorAction SilentlyContinue } catch { $null }
+$fs = if ($vol -and $vol.FileSystem) { $vol.FileSystem } else {
+    try { (Get-CimInstance Win32_LogicalDisk -Filter "DeviceID='$($repoDrive):'").FileSystem } catch { 'NTFS' }
+}
+$driveType = if ($vol -and $vol.DriveType) { "$($vol.DriveType)" } else { 'Fixed' }
+$physDisks = try { @(Get-PhysicalDisk -ErrorAction SilentlyContinue) } catch { @() }
+$mediaType = if ($physDisks.Count -gt 0 -and $physDisks[0].MediaType) { "$($physDisks[0].MediaType)" } else { $null }
 
 $envMetadata = [ordered]@{
     git = [ordered]@{
         commit = $gitCommit
         branch = $gitBranch
         dirty = $gitDirty
+        benchmark_harness_sha256 = $harnessSha256
+        report_generator_sha256 = $renderSha256
     }
     host = [ordered]@{
-        os = [Environment]::OSVersion.ToString()
+        os_caption = $osCaption
+        os_version = $osVersion
+        os_build_number = $osBuild
         architecture = $env:PROCESSOR_ARCHITECTURE
-        cpu_model = $env:PROCESSOR_IDENTIFIER
-        logical_processors = $logicalCpus
-        total_memory_bytes = $totalRamBytes
-        total_memory_gib = [Math]::Round($totalRamBytes / 1GB, 2)
+        cpu_name = $cpuName
+        number_of_cores = $numCores
+        number_of_logical_processors = $logicalCpus
+        total_physical_memory_bytes = $totalPhysicalRamBytes
+        total_physical_memory_gib = $totalPhysicalRamGib
+        filesystem = $fs
+        volume_type = $driveType
+        storage_media_type = $mediaType
     }
     toolchain = [ordered]@{
         rustc_verbose = $rustcVer
         cargo = $cargoVer
         target = "x86_64-pc-windows-msvc"
         build_profile = "release"
+        lto = $false
+        opt_level = 3
+        codegen_units = "default"
+        note = "Standard Cargo release optimization, no LTO configured in Cargo.toml"
         features = @("pqc")
     }
 }
@@ -344,7 +384,10 @@ if ($Profile -eq 'Smoke') {
     $m5Sizes = @(64MB)
 }
 
+$fixturePath = Join-Path $repo 'tests/fixtures/sample_fixed.bin'
+$fixtureSha256 = (Get-FileHash -LiteralPath $fixturePath).Hash
 $copybookPath = Join-Path $repo 'tests/fixtures/sample_fixed.cpy'
+$copybookSha256 = (Get-FileHash -LiteralPath $copybookPath).Hash
 
 # =========================================================================
 # 3. M3 End-to-End Conversion Benchmark
@@ -360,6 +403,7 @@ foreach ($sc in $m3Scenarios) {
 
     $dataFile = Join-Path $runDir "m3-input-$recs-$batch.bin"
     Generate-Dataset $dataFile $recs
+    $inputSha256 = (Get-FileHash -LiteralPath $dataFile).Hash
 
     $warmupRuns = @()
     $measuredRuns = @()
@@ -399,6 +443,8 @@ foreach ($sc in $m3Scenarios) {
             internal_elapsed_ms = if ($runRes.report) { $runRes.report.elapsed_ms } else { $null }
             observed_peak_working_set_bytes = $runRes.observed_peak_working_set_bytes
             exit_code = $runRes.exit_code
+            verified = $true
+            verification_method = "independent-oracle-parquet"
         }
     }
 
@@ -414,6 +460,10 @@ foreach ($sc in $m3Scenarios) {
         record_length = 35
         batch_records = $batch
         input_bytes = $inputBytes
+        input_sha256 = $inputSha256
+        copybook_sha256 = $copybookSha256
+        source_fixture_sha256 = $fixtureSha256
+        dataset_design = "deterministic repetition of tests/fixtures/sample_fixed.bin"
         warmup_runs = $warmupCount
         measured_runs = $measuredCount
         runs = $measuredRuns
@@ -428,6 +478,7 @@ foreach ($sc in $m3Scenarios) {
         observed_peak_working_set_bytes = $stats.observed_peak_working_set_bytes
         observed_peak_working_set_mib = $stats.observed_peak_working_set_mib
         verified = $true
+        verification_method = "independent-oracle-parquet"
     })
 }
 
@@ -445,6 +496,7 @@ foreach ($sc in $m4Scenarios) {
 
     $dataFile = Join-Path $runDir "m4-input-$recs-$batch.bin"
     Generate-Dataset $dataFile $recs
+    $inputSha256 = (Get-FileHash -LiteralPath $dataFile).Hash
 
     $measuredRuns = @()
 
@@ -484,6 +536,8 @@ foreach ($sc in $m4Scenarios) {
             observed_peak_working_set_bytes = $runRes.observed_peak_working_set_bytes
             exit_code = $runRes.exit_code
             parts = if ($runRes.report) { $runRes.report.dataset_parts } else { [Math]::Ceiling($recs / $batch) }
+            verified = $true
+            verification_method = "independent-oracle-m4-manifest-receipts"
         }
     }
 
@@ -501,6 +555,10 @@ foreach ($sc in $m4Scenarios) {
         batch_records = $batch
         parts = $partCount
         input_bytes = $inputBytes
+        input_sha256 = $inputSha256
+        copybook_sha256 = $copybookSha256
+        source_fixture_sha256 = $fixtureSha256
+        dataset_design = "deterministic repetition of tests/fixtures/sample_fixed.bin"
         warmup_runs = $warmupCount
         measured_runs = $measuredCount
         runs = $measuredRuns
@@ -515,6 +573,7 @@ foreach ($sc in $m4Scenarios) {
         observed_peak_working_set_bytes = $stats.observed_peak_working_set_bytes
         observed_peak_working_set_mib = $stats.observed_peak_working_set_mib
         verified = $true
+        verification_method = "independent-oracle-m4-manifest-receipts"
     })
 }
 
@@ -547,6 +606,7 @@ foreach ($size in $m5Sizes) {
 
     # 5.1 Protect
     $protectRuns = @()
+    # Warm-up run with roundtrip verification outside timing
     for ($w = 1; $w -le $warmupCount; $w++) {
         $enc = Join-Path $runDir "m5-enc-warmup-$size-$w.m5"
         Invoke-BenchProcess -Program $m2cBin -Arguments @(
@@ -556,6 +616,17 @@ foreach ($size in $m5Sizes) {
             '--output', $enc,
             '--report-json'
         ) | Out-Null
+        
+        # Verify outside timing
+        $tempPlain = Join-Path $runDir "m5-plain-warmup-verify-$size-$w.bin"
+        Invoke-BenchProcess -Program $m2cBin -Arguments @(
+            'unprotect',
+            '--input', $enc,
+            '--secret-key', $secKey,
+            '--output', $tempPlain
+        ) | Out-Null
+        Verify-RoundtripOutput $payloadFile $tempPlain
+        Remove-Safe $tempPlain
         Remove-Safe $enc
     }
 
@@ -569,12 +640,26 @@ foreach ($size in $m5Sizes) {
             '--output', $enc,
             '--report-json'
         )
+
+        # Independent roundtrip verification for EACH measured protect run outside the timed region
+        $tempPlain = Join-Path $runDir "m5-plain-verify-$size-$m.bin"
+        Invoke-BenchProcess -Program $m2cBin -Arguments @(
+            'unprotect',
+            '--input', $enc,
+            '--secret-key', $secKey,
+            '--output', $tempPlain
+        ) | Out-Null
+        Verify-RoundtripOutput $payloadFile $tempPlain
+        Remove-Safe $tempPlain
+
         $protectRuns += [pscustomobject]@{
             iteration = $m
             wall_clock_elapsed_ms = $runRes.wall_clock_elapsed_ms
             internal_elapsed_ms = if ($runRes.report) { $runRes.report.elapsed_ms } else { $null }
             observed_peak_working_set_bytes = $runRes.observed_peak_working_set_bytes
             exit_code = $runRes.exit_code
+            verified = $true
+            verification_method = "byte-for-byte"
         }
         if ($m -eq $measuredCount) {
             $lastEncFile = $enc
@@ -590,6 +675,7 @@ foreach ($size in $m5Sizes) {
         benchmark = "m5-protect"
         command = "protect"
         payload_bytes = $size
+        payload_sha256 = $payloadSha256
         warmup_runs = $warmupCount
         measured_runs = $measuredCount
         runs = $protectRuns
@@ -603,6 +689,7 @@ foreach ($size in $m5Sizes) {
         observed_peak_working_set_bytes = $protectStats.observed_peak_working_set_bytes
         observed_peak_working_set_mib = $protectStats.observed_peak_working_set_mib
         verified = $true
+        verification_method = "byte-for-byte"
     })
 
     # 5.2 Unprotect
@@ -629,6 +716,8 @@ foreach ($size in $m5Sizes) {
             '--output', $plain,
             '--report-json'
         )
+
+        # Verify EACH recovered plaintext outside the timed region
         Verify-RoundtripOutput $payloadFile $plain
         Remove-Safe $plain
 
@@ -638,6 +727,8 @@ foreach ($size in $m5Sizes) {
             internal_elapsed_ms = if ($runRes.report) { $runRes.report.elapsed_ms } else { $null }
             observed_peak_working_set_bytes = $runRes.observed_peak_working_set_bytes
             exit_code = $runRes.exit_code
+            verified = $true
+            verification_method = "byte-for-byte"
         }
     }
 
@@ -651,6 +742,7 @@ foreach ($size in $m5Sizes) {
         benchmark = "m5-unprotect"
         command = "unprotect"
         payload_bytes = $size
+        payload_sha256 = $payloadSha256
         warmup_runs = $warmupCount
         measured_runs = $measuredCount
         runs = $unprotectRuns
@@ -664,6 +756,7 @@ foreach ($size in $m5Sizes) {
         observed_peak_working_set_bytes = $unprotectStats.observed_peak_working_set_bytes
         observed_peak_working_set_mib = $unprotectStats.observed_peak_working_set_mib
         verified = $true
+        verification_method = "byte-for-byte"
     })
 }
 
@@ -712,7 +805,15 @@ foreach ($grp in $microGroups) {
         [Math]::Round(($first.records_per_iteration * 1000000000.0) / $medianNs, 2)
     } else { $null }
 
-    Write-Host "Micro: Workload=$($first.workload), Op=$($first.operation) -> Median: $medianNs ns/it $(if ($recordsPerSec) { "($recordsPerSec records/s)" } else { '' })" -ForegroundColor Green
+    # Distinction: MiB/s (1024^2) and MB/s (10^6)
+    $bytesPerSec = if ($first.input_bytes_per_iteration -and $medianNs -gt 0) {
+        ($first.input_bytes_per_iteration * 1000000000.0) / $medianNs
+    } else { $null }
+
+    $inputMibPerSec = if ($bytesPerSec) { [Math]::Round($bytesPerSec / 1048576.0, 2) } else { $null }
+    $inputMbPerSec = if ($bytesPerSec) { [Math]::Round($bytesPerSec / 1000000.0, 2) } else { $null }
+
+    Write-Host "Micro: Workload=$($first.workload), Op=$($first.operation) -> Median: $medianNs ns/it $(if ($recordsPerSec) { "($recordsPerSec records/s, $inputMibPerSec MiB/s)" } else { '' })" -ForegroundColor Green
 
     $microSummary.Add([pscustomobject]@{
         workload = $first.workload
@@ -721,9 +822,12 @@ foreach ($grp in $microGroups) {
         median_ns_per_iteration = [long]$medianNs
         min_ns_per_iteration = $nsList[0]
         max_ns_per_iteration = $nsList[-1]
+        mean_ns_per_iteration = [Math]::Round(($nsList | Measure-Object -Average).Average, 2)
         records_per_iteration = $first.records_per_iteration
         records_per_second = $recordsPerSec
         input_bytes_per_iteration = $first.input_bytes_per_iteration
+        input_mib_per_second = $inputMibPerSec
+        input_mb_per_second = $inputMbPerSec
     })
 }
 

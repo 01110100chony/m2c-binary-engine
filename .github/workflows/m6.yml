@@ -30,6 +30,14 @@ jobs:
         run: ./scripts/m6.ps1 -Mode Demo
       - name: Benchmark tooling smoke (no performance gate)
         run: ./scripts/m6.ps1 -Mode Bench -Profile Smoke
+      - name: Standalone benchmark harness smoke (no performance gate)
+        run: ./scripts/benchmark.ps1 -Profile Smoke
+      - name: Report generator consistency check
+        run: python scripts/render_benchmarks.py --check
+      - name: Comparator self-test
+        run: |
+          pip install --quiet pyarrow
+          python scripts/compare_cobrix.py --test
       - name: Evidence summaries (exclude keys, corpus and raw diagnostics)
         if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
