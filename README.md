@@ -1,28 +1,28 @@
 # M2C Quantum-Safe Data Pipeline
 
-Pipeline experimental, escrito principalmente em Rust, para estudar a conversão de dados binários legados de mainframe em dados colunares tipados:
+An experimental pipeline, written primarily in Rust, for studying the conversion of legacy mainframe binary data into typed columnar data:
 
 ```text
-arquivo binário fixed-record + COBOL copybook
-    -> layout compilado
-    -> decoding tipado
+fixed-record binary file + COBOL copybook
+    -> compiled layout
+    -> typed decoding
     -> Arrow / Parquet
-    -> proteção quantum-safe opcional
-    -> sink local ou cloud
+    -> optional quantum-safe protection
+    -> local or cloud sink
 ```
 
 ## Status
 
-Este é um projeto educacional e de portfólio, mantido por um estudante de Engenharia da Computação. A arquitetura v0.1 está congelada. **M0 a M6 estão implementados:** fundação, compilador de copybook, codecs e Arrow, conversão local para Parquet, recuperação em partes, proteção experimental de artefatos e evidência técnica local.
+This is an educational and portfolio project maintained by a Computer Engineering student. The v0.1 architecture is frozen. **M0 through M6 are implemented:** foundation, copybook compiler, codecs and Arrow, local Parquet conversion, multipart recovery, experimental artifact protection, and local technical evidence.
 
-O projeto oferece conversão local síncrona de um arquivo fixed-record para Parquet, em batches limitados, pela biblioteca e pela CLI. O M4 acrescenta saída em partes determinísticas com manifest e retomada após interrupção do processo, preservando a conversão de saída única M3. O M5 acrescenta, sob a feature opcional `pqc`, proteção autônoma de arquivos com ML-KEM-768, HKDF-SHA-256 e AES-256-GCM/STREAM-BE32. M6 acrescenta resumo JSON por comando, campanhas complementares, verificação externa e benchmarks reproduzíveis. Cloud e infraestrutura de observabilidade permanecem futuras. O software não deve ser usado para dados sensíveis ou cargas de produção.
+The project provides synchronous local conversion from a fixed-record file to Parquet, in bounded batches, through both the library and the CLI. M4 adds deterministic multipart output with a manifest and restart after process interruption, while preserving the M3 single-output conversion path. M5 adds standalone file protection under the optional `pqc` feature using ML-KEM-768, HKDF-SHA-256, and AES-256-GCM/STREAM-BE32. M6 adds per-command JSON reporting, complementary campaigns, external verification, and reproducible benchmarks. Cloud and observability infrastructure remain future work. The software should not be used for sensitive data or production workloads.
 
-## Evidência local M6
+## M6 Local Evidence
 
-Adicione `--report-json` aos comandos existentes para obter resultado, duração e
-volumes observáveis em stdout; diagnósticos e códigos de saída são preservados.
-Campos desconhecidos são `null`; o relatório não contém caminhos ou chaves.
-O runner PowerShell 7 oferece `Verify`, `Demo`, `Fuzz` e `Bench`:
+Add `--report-json` to existing commands to obtain result, duration, and observable
+volume information on stdout; diagnostics and exit codes are preserved.
+Unknown fields are `null`; the report contains no paths or keys.
+The PowerShell 7 runner provides `Verify`, `Demo`, `Fuzz`, and `Bench`:
 
 ```powershell
 ./scripts/m6.ps1 -Mode Verify
@@ -31,83 +31,85 @@ O runner PowerShell 7 oferece `Verify`, `Demo`, `Fuzz` e `Bench`:
 ./scripts/m6.ps1 -Mode Bench -Profile Full
 ```
 
-Consulte o [contrato e reprodução](docs/M6_EVIDENCE.md) e os
-[resultados locais](docs/M6_RESULTS.md). Gates locais passaram; reparse/symlink
-teve skip ambiental Windows 1314. O workflow Windows passou remotamente no commit
-`8d44218605a59a190590772fa52232c5859c9bc8` com Verify/Fuzz Smoke/Demo/Bench Smoke;
-esse run precede a remediação final, validada localmente. Full permanece local.
-As medições não estabelecem SLA nem memória global constante.
+See the [evidence contract and reproduction instructions](docs/M6_EVIDENCE.md) and the
+[local results](docs/M6_RESULTS.md). Local gates passed; the reparse/symlink case
+was skipped because of Windows environment error 1314. The Windows workflow passed remotely on commit
+`8d44218605a59a190590772fa52232c5859c9bc8` with Verify/Fuzz Smoke/Demo/Bench Smoke;
+that run predates the final remediation, which was validated locally. Full remains local.
+The measurements do not establish an SLA or a globally constant memory bound.
 
-## Desempenho — benchmarks locais
+## Performance — Local Benchmarks
 
-Medições empíricas em máquina local (AMD Ryzen 5 3400G, 16 GB DDR4, Windows 10/NTFS, Rust 1.95 MSVC release, 1 warmup + 5 execuções medidas, sem LTO):
+Empirical measurements on a local machine (AMD Ryzen 5 3400G, 16 GB DDR4, Windows 10/NTFS, Rust 1.95 MSVC release, 1 warmup + 5 measured runs, no LTO):
 
-- **M3 (conversão direta para Parquet)**: 3.000.000 registros (100,14 MiB) em batch 65.536 com mediana de **2.096,45 ms** (~1,43M reg/s, 47,76 MiB/s de entrada, pico de memória de trabalho observado de 15,26 MiB).
-- **M4 (conversão multipart recuperável)**: 3.000.000 registros em batch 65.536 (46 partes) com mediana de **5.049,99 ms** (~594,1k reg/s, 19,83 MiB/s, pico observado de 15,24 MiB).
-- **M5 (proteção quantum-safe)**: payload de 64 MiB com protect em **5.466,58 ms** (11,71 MiB/s, 5,27 MiB WS) e unprotect em **877,25 ms** (72,95 MiB/s, 5,27 MiB WS), verificado por igualdade estrita byte a byte de ida e volta (roundtrip).
-- **Microbenchmarks (in-memory, isolados de disco/Parquet)**: decode de batch misto a **4,56M reg/s** (168.367 ns/it para 768 registros, 152,26 MiB/s) e texto puro a **36,07M reg/s** (7.098 ns/it para 256 registros, 137,58 MiB/s).
+- **M3 (direct Parquet conversion)**: 3,000,000 records (100.14 MiB) at batch size 65,536 with a median of **2,096.45 ms** (~1.43M rec/s, 47.76 MiB/s input throughput, 15.26 MiB observed peak working set).
+- **M4 (recoverable multipart conversion)**: 3,000,000 records at batch size 65,536 (46 parts) with a median of **5,049.99 ms** (~594.1k rec/s, 19.83 MiB/s, 15.24 MiB observed peak working set).
+- **M5 (quantum-safe protection)**: 64 MiB payload with protect at **5,466.58 ms** (11.71 MiB/s, 5.27 MiB WS) and unprotect at **877.25 ms** (72.95 MiB/s, 5.27 MiB WS), verified by strict byte-for-byte roundtrip equality.
+- **Microbenchmarks (in-memory, isolated from disk/Parquet)**: mixed-batch decoding at **4.56M rec/s** (168,367 ns/it for 768 records, 152.26 MiB/s) and text-only decoding at **36.07M rec/s** (7,098 ns/it for 256 records, 137.58 MiB/s).
 
-Consulte a metodologia, limites e reprodutibilidade completa em [BENCHMARKS.md](docs/BENCHMARKS.md). Para executar o harness reproduzível:
+See [BENCHMARKS.md](docs/BENCHMARKS.md) for the complete methodology, limits, and reproducibility details. To run the reproducible harness:
+
 ```powershell
 ./scripts/benchmark.ps1 -Profile Full
 ```
 
-## Compatibilidade externa — validação Spark / Cobrix
+## External Compatibility — Spark / Cobrix Validation
 
-Validação diferencial independente de exatidão semântica (não benchmark de desempenho):
-- Processamento de fixture realista gerada externamente com GnuCOBOL (`input.ebcdic`, 100 registros de 24 bytes, 2.400 bytes, SHA-256 fixada, com texto CP037 e decimais compactados COMP-3; não extraída de produção).
-- Decodificação independente pelo conector oficial **AbsaOSS Cobrix 2.9.4** sobre **Apache Spark 4.0.1** (Java 17, Ubuntu 24.04 LTS via WSL2).
-- Comparação semântica campo a campo via [`scripts/compare_cobrix.py`](scripts/compare_cobrix.py): **100/100 registros idênticos** após validação explícita de esquema e escala decimal (`int32` vs `decimal128(9,0)` para ID, `decimal128(9,2)` para valor).
-- Não constitui teste de desempenho, não utiliza dados proprietários de produção e não implica compatibilidade universal com COBOL. Relatório completo e instruções formais em [EXTERNAL_COMPATIBILITY.md](docs/EXTERNAL_COMPATIBILITY.md).
+Independent differential validation of semantic correctness (not a performance benchmark):
 
-## Base de conversão
+- Processing of a realistic externally generated GnuCOBOL fixture (`input.ebcdic`, 100 records of 24 bytes, 2,400 bytes total, pinned SHA-256, with CP037 text and COMP-3 packed decimals; not extracted from production).
+- Independent decoding with the official **AbsaOSS Cobrix 2.9.4** connector on **Apache Spark 4.0.1** (Java 17, Ubuntu 24.04 LTS via WSL2).
+- Field-by-field semantic comparison through [`scripts/compare_cobrix.py`](scripts/compare_cobrix.py): **100/100 identical records** after explicit schema and decimal-scale validation (`int32` vs `decimal128(9,0)` for ID, `decimal128(9,2)` for value).
+- This is not a performance test, does not use proprietary production data, and does not imply universal COBOL compatibility. See [EXTERNAL_COMPATIBILITY.md](docs/EXTERNAL_COMPATIBILITY.md) for the full report and formal instructions.
 
-O M1 transforma um copybook do subconjunto documentado em uma representação compilada. O M2 usa esse layout para decodificar bytes sem reinterpretar COBOL no hot path:
+## Conversion Foundation
+
+M1 transforms a copybook from the documented subset into a compiled representation. M2 uses that layout to decode bytes without reinterpreting COBOL in the hot path:
 
 ```text
 sample.cpy
-    -> normalização fixed-format
+    -> fixed-format normalization
     -> parser
-    -> AST mínima
+    -> minimal AST
     -> CompiledCopybook
          - record length
-         - field offsets e byte lengths
-         - physical encodings e signedness
-         - precision e scale
+         - field offsets and byte lengths
+         - physical encodings and signedness
+         - precision and scale
          - logical Arrow types
          - Arrow Schema
 ```
 
-O subconjunto aceito é intencionalmente pequeno. Sintaxe fora dele deve produzir um diagnóstico explícito com localização, nunca ser ignorada silenciosamente. Consulte [COPYBOOK_SUBSET.md](docs/COPYBOOK_SUBSET.md) para o contrato completo.
+The accepted subset is intentionally small. Syntax outside that subset must produce an explicit diagnostic with source location and must never be silently ignored. See [COPYBOOK_SUBSET.md](docs/COPYBOOK_SUBSET.md) for the complete contract.
 
-## Arquitetura v0.1
+## Architecture v0.1
 
-O repositório usa um único pacote Rust com biblioteca e CLI. O fluxo é:
+The repository uses a single Rust package with both a library and CLI. The flow is:
 
-1. interpretar e compilar o copybook uma única vez;
-2. em M3, ler um arquivo binário de registros de tamanho fixo em batches limitados;
-3. usar os codecs M2 para decodificar cada batch para Arrow;
-4. em M3, escrever incrementalmente row groups em um único arquivo Parquet local;
-5. em M4, oferecer partes locais, recibos imutáveis de commit e retomada explícita;
-6. em M5, proteger opcionalmente um arquivo já produzido usando AEAD + ML-KEM;
-7. somente depois da demonstração local, considerar um sink de object storage.
+1. parse and compile the copybook once;
+2. in M3, read a fixed-record binary file in bounded batches;
+3. use the M2 codecs to decode each batch into Arrow;
+4. in M3, incrementally write row groups into a single local Parquet file;
+5. in M4, provide local parts, immutable commit receipts, and explicit resume;
+6. in M5, optionally protect an already produced file using AEAD + ML-KEM;
+7. only after the local demonstration, consider an object-storage sink.
 
-A descrição dos limites e invariantes está em [ARCHITECTURE.md](docs/ARCHITECTURE.md). A análise que motivou a reconstrução permanece em [ANALISE_DO_PROJETO.md](docs/ANALISE_DO_PROJETO.md).
+The limits and invariants are described in [ARCHITECTURE.md](docs/ARCHITECTURE.md). The analysis that motivated the rebuild remains in [ANALISE_DO_PROJETO.md](docs/ANALISE_DO_PROJETO.md).
 
-## Mapeamento lógico congelado
+## Frozen Logical Mapping
 
-| Campo COBOL | Tipo lógico Arrow |
+| COBOL field | Arrow logical type |
 |---|---|
 | `PIC X...` | `Utf8` |
-| DISPLAY inteiro | `Int64` |
-| DISPLAY com escala implícita `V` | `Decimal128` |
-| COMP/BINARY sem escala | `Int64` |
-| COMP/BINARY com escala implícita `V` | `Decimal128` |
+| integer DISPLAY | `Int64` |
+| DISPLAY with implicit `V` scale | `Decimal128` |
+| COMP/BINARY without scale | `Int64` |
+| COMP/BINARY with implicit `V` scale | `Decimal128` |
 | COMP-3/PACKED-DECIMAL | `Decimal128` |
 
-`FILLER` ocupa bytes e participa dos offsets e do tamanho do registro, mas não é exposto no Arrow Schema.
+`FILLER` consumes bytes and participates in offsets and record length, but is not exposed in the Arrow Schema.
 
-## Verificação de desenvolvimento
+## Development Verification
 
 ```bash
 cargo fmt --all -- --check
@@ -118,11 +120,11 @@ cargo test --doc
 cargo test --doc --all-features
 ```
 
-Os testes do M1 validam AST, layout e rejeição de sintaxe não suportada. O M2 acrescenta a tabela pública CP037 completa, uma fixture binária anotada comparada a um RecordBatch esperado, testes adversariais e propriedades com seed fixa. Consulte a [origem das fixtures](tests/fixtures/README.md).
+M1 tests validate the AST, layout, and rejection of unsupported syntax. M2 adds the complete public CP037 table, an annotated binary fixture compared against an expected `RecordBatch`, adversarial tests, and fixed-seed properties. See the [fixture provenance](tests/fixtures/README.md).
 
-A API de entrada do milestone é `parse_and_compile_copybook(&str)`. Para inspecionar separadamente as duas etapas, use `parse_copybook(&str)` seguido de `compile_copybook(&CopybookAst)`.
+The milestone entry-point API is `parse_and_compile_copybook(&str)`. To inspect the two stages separately, use `parse_copybook(&str)` followed by `compile_copybook(&CopybookAst)`.
 
-## Decoding M2
+## M2 Decoding
 
 ```rust
 use m2c_pipeline::{parse_and_compile_copybook, RecordDecoder};
@@ -133,89 +135,89 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     )?;
     let decoder = RecordDecoder::try_new(&layout)?;
     let batch = decoder.decode_batch(&[0xF1, 0xF2, 0xF0, 0xF3])?;
-    assert_eq!(batch.num_rows(), 2); // Int64: 12 e 3
+    assert_eq!(batch.num_rows(), 2); // Int64: 12 and 3
     Ok(())
 }
 ```
 
-O decoder valida o layout uma vez e pode ser reutilizado. O chamador fornece batches
-limitados com registros inteiros. Texto mantém espaços e controles CP037; erros
-numéricos retornam diagnósticos tipados, sem batch parcial. As políticas de sinais,
-precisão, capacidade e posições estão no [contrato de decoding](docs/DECODING.md).
+The decoder validates the layout once and can be reused. The caller supplies bounded
+batches containing complete records. Text preserves spaces and CP037 control characters;
+numeric errors return typed diagnostics with no partial batch. Sign, precision, capacity,
+and position policies are defined in the [decoding contract](docs/DECODING.md).
 
-## Conversão local M3
+## M3 Local Conversion
 
 ```bash
 cargo run -- convert --copybook tests/fixtures/sample_fixed.cpy --input tests/fixtures/sample_fixed.bin --output sample.parquet --batch-records 2
 ```
 
-Os quatro argumentos são obrigatórios. `--batch-records` deve ser um inteiro
-positivo: limita quantos registros são lidos e decodificados por vez. O exemplo
-produz três linhas em dois row groups (2 + 1), sem compressão adicional. A saída
-deve ser um caminho novo, com diretório pai existente; arquivos existentes nunca
-são sobrescritos. Erros são escritos em stderr e retornam status não zero.
+All four arguments are required. `--batch-records` must be a positive integer
+and limits the number of records read and decoded at a time. The example
+produces three rows in two row groups (2 + 1), with no additional compression.
+The output must be a new path with an existing parent directory; existing files
+are never overwritten. Errors are written to stderr and return a non-zero status.
 
-A biblioteca expõe
+The library exposes
 `convert_file(&CompiledCopybook, &Path, &Path, usize) -> Result<(), ConversionError>`.
-Os caminhos são entrada e saída, nessa ordem; o último argumento limita os
-registros por batch. O copybook é compilado uma vez e um único `RecordDecoder`
-é reutilizado. Schema, nomes, ordem, tipos, precisão/escala e valores M2 são
-preservados. A validação reabre o Parquet nos testes; a CLI não faz uma segunda
-leitura obrigatória do resultado.
+The paths are input and output, in that order; the final argument limits the
+records per batch. The copybook is compiled once and a single `RecordDecoder`
+is reused. M2 schema, names, order, types, precision/scale, and values are preserved.
+Tests reopen the Parquet file for validation; the CLI does not perform a mandatory
+second read of the result.
 
-Entrada vazia produz Parquet vazio com schema. Registro incompleto no EOF,
-batch zero, overflow e dados numéricos inválidos retornam erros tipados. Erros
-de decoding indicam a posição absoluta no arquivo e o índice global do registro;
-o offset de byte do contexto M2 permanece relativo ao batch. Layouts somente FILLER são rejeitados na conversão M3, sem alterar
-seu suporte no compilador ou decoder.
+Empty input produces an empty Parquet file with schema. Incomplete records at EOF,
+zero batch size, overflow, and invalid numeric data return typed errors. Decoding
+errors report the absolute file position and global record index; the byte offset
+inside the M2 context remains batch-relative. FILLER-only layouts are rejected by M3
+conversion without changing their support in the compiler or decoder.
 
-A memória dos dados é limitada por batch; o footer Parquet acumula metadados
-proporcionais à quantidade de row groups. Uma falha pode deixar saída parcial;
-não há atomic commit, manifest, retry ou retomada. O teste `local_conversion`
-executa a CLI sobre a fixture conhecida com batch de dois registros, reabre a
-saída e compara schema e valores com constantes independentes do decoder.
+Data memory is bounded by batch size; the Parquet footer accumulates metadata
+proportional to the number of row groups. A failure can leave a partial output;
+there is no atomic commit, manifest, retry, or resume. The `local_conversion`
+test runs the CLI against the known fixture with a two-record batch, reopens the
+output, and compares schema and values against constants independent of the decoder.
 
-## Conversão recuperável M4
+## M4 Recoverable Conversion
 
 ```bash
 cargo run -- convert-parts --copybook tests/fixtures/sample_fixed.cpy --input tests/fixtures/sample_fixed.bin --output-dir sample-parts --batch-records 2
 cargo run -- convert-parts --copybook tests/fixtures/sample_fixed.cpy --input tests/fixtures/sample_fixed.bin --output-dir sample-parts --batch-records 2 --resume
 ```
 
-Os quatro argumentos são obrigatórios em ambos os modos. Sem `--resume`, o
-diretório de saída deve ser novo, com pai existente; com a flag, deve existir.
-Um batch corresponde a uma parte Parquet, com nomes e intervalos determinísticos.
-O exemplo produz duas partes (2 + 1 registros). Entrada vazia produz uma parte
-com schema e zero linhas.
+All four arguments are required in both modes. Without `--resume`, the
+output directory must be new and its parent must already exist; with the flag,
+the directory must exist. One batch corresponds to one Parquet part, with
+deterministic names and record ranges. The example produces two parts (2 + 1 records).
+Empty input produces one part with schema and zero rows.
 
-A biblioteca expõe `convert_parts(&CompiledCopybook, &Path, &Path, usize,
-RecoveryMode) -> Result<(), RecoveryError>`, com modos `Create` e `Resume`.
-`manifest.json` identifica a conversão; cada parte publicada recebe um recibo
-imutável em `commits/`; `complete.json` marca a conclusão. Um Parquet sem recibo
-é órfão, não um commit. Resume valida entrada, layout, configuração e todos os
-confirmados antes de limpar staging ou regenerar o próximo órfão.
+The library exposes `convert_parts(&CompiledCopybook, &Path, &Path, usize,
+RecoveryMode) -> Result<(), RecoveryError>`, with `Create` and `Resume` modes.
+`manifest.json` identifies the conversion; each published part receives an immutable
+receipt under `commits/`; `complete.json` marks completion. A Parquet file without
+a receipt is an orphan, not a commit. Resume validates the input, layout, configuration,
+and every committed part before cleaning staging or regenerating the next orphan.
 
-A identidade SHA-256 usa o conteúdo integral da entrada e o layout/schema
-canônico. Entrada idêntica em outro caminho pode retomar; entrada alterada,
-layout diferente ou outro tamanho de batch exige novo destino. Partes confirmadas
-ausentes ou corrompidas causam erro e nunca são regeneradas automaticamente.
-Uma retomada concluída revalida o resultado sem reescrever partes confirmadas.
+SHA-256 identity uses the full input content and the canonical layout/schema.
+Identical input at a different path can resume; changed input, a different layout,
+or a different batch size requires a new destination. Missing or corrupted committed
+parts cause an error and are never regenerated automatically. Resuming an already
+completed conversion revalidates the result without rewriting committed parts.
 
-O alvo inicial é Windows/MSVC com NTFS local e Rust 1.89 ou superior. Um lock de
-arquivo impede invocações M4 simultâneas no mesmo destino. Staging e publicação
-permanecem no mesmo filesystem; a garantia cobre falha do processo, sem prometer
-durabilidade após queda de energia ou falha do sistema operacional. A entrada e
-o diretório administrado devem permanecer imutáveis para outros programas durante
-cada invocação. Hashes conferem identidade/integridade e não protegem o payload.
+The initial target is Windows/MSVC with local NTFS and Rust 1.89 or newer. A file
+lock prevents concurrent M4 invocations against the same destination. Staging and
+publication remain on the same filesystem; the guarantee covers process failure,
+without promising durability after a power loss or operating-system failure. The
+input and managed directory must remain immutable to other programs during each
+invocation. Hashes provide identity/integrity and do not protect the payload.
 
-O [contrato M4](docs/M4_RECOVERY.md) define formato, bootstrap, recuperação,
-invariantes, fault injection, critérios de aceite e limitações. Dados e hashing
-usam memória limitada; artefatos e metadados em disco crescem com a quantidade de
-partes. A validação da retomada relê entrada e partes confirmadas.
+The [M4 contract](docs/M4_RECOVERY.md) defines the format, bootstrap, recovery,
+invariants, fault injection, acceptance criteria, and limitations. Data and hashing
+use bounded memory; artifacts and metadata on disk grow with the number of parts.
+Resume validation rereads the input and committed parts.
 
-## Proteção experimental M5
+## M5 Experimental Protection
 
-O M5 é compilado somente com a feature `pqc` e opera separadamente do pipeline M4:
+M5 is compiled only with the `pqc` feature and operates separately from the M4 pipeline:
 
 ```bash
 cargo run --features pqc -- keygen --output-dir sample-keys
@@ -223,75 +225,76 @@ cargo run --features pqc -- protect --input sample.parquet --public-key sample-k
 cargo run --features pqc -- unprotect --input sample.parquet.m5 --secret-key sample-keys/secret.key --output recovered.parquet
 ```
 
-`keygen` exige um diretório de destino inexistente. `protect` e `unprotect` exigem
-um diretório pai existente e nunca sobrescrevem o nome final. A garantia de
-publicação M5 v1 cobre somente Windows/MSVC em volume NTFS local: staging e destino
-ficam no mesmo diretório e o commit usa criação atômica de hard link com falha se o
-nome final existir. Outros filesystems, compartilhamentos e plataformas falham
-fechado. Nenhuma operação M5 escreve em namespace administrado pelo M4; um artefato
-M4 pode ser usado somente como entrada de leitura.
+`keygen` requires a non-existent destination directory. `protect` and `unprotect`
+require an existing parent directory and never overwrite the final name. The M5 v1
+publication guarantee covers only Windows/MSVC on a local NTFS volume: staging and
+destination remain in the same directory and commit uses atomic hard-link creation,
+failing if the final name already exists. Other filesystems, shares, and platforms
+fail closed. No M5 operation writes into an M4-managed namespace; an M4 artifact
+may only be used as a read-only input.
 
-A suíte fechada v1 usa ML-KEM-768 para estabelecimento de chave, HKDF-SHA-256 e
-AES-256-GCM em STREAM-BE32, com chunks de 1 MiB e cabeçalho integral como AAD de
-cada frame. O limite formal é `2^32` frames e `2^52` bytes de plaintext. A produção
-obtém toda entropia do sistema operacional. `recipient_public_key_sha256` é apenas
-fingerprint/identificador da representação da chave pública; sua integridade vem do
-AAD autenticado e ele não autentica a identidade do destinatário.
+The frozen v1 suite uses ML-KEM-768 for key establishment, HKDF-SHA-256, and
+AES-256-GCM in STREAM-BE32, with 1 MiB chunks and the complete header as AAD for
+each frame. The formal limit is `2^32` frames and `2^52` plaintext bytes. Production
+obtains all entropy from the operating system. `recipient_public_key_sha256` is only
+a fingerprint/identifier for the public-key representation; its integrity comes from
+authenticated AAD and it does not authenticate the recipient's identity.
 
-A biblioteca expõe `generate_keypair`, `protect_file` e `unprotect_file` em
-`m2c_pipeline::protection`. As operações processam o payload com memória limitada,
-publicam somente após validação integral e retornam erros, avisos de permissão e
-status de resíduo de staging tipados. Permissões restritivas e zeroização dos
-buffers secretos possuídos pelo M2C são mitigações de melhor esforço. Proteção da
-chave secreta em repouso, assinatura, múltiplos destinatários, KMS/HSM, integração
-M4 e suporte cloud permanecem fora do escopo.
+The library exposes `generate_keypair`, `protect_file`, and `unprotect_file` under
+`m2c_pipeline::protection`. The operations process the payload with bounded memory,
+publish only after complete validation, and return typed errors, permission warnings,
+and staging-residue status. Restrictive permissions and zeroization of secret buffers
+owned by M2C are best-effort mitigations. Secret-key protection at rest, signatures,
+multiple recipients, KMS/HSM integration, M4 integration, and cloud support remain
+out of scope.
 
-O formato binário, modelo de falhas, limites e limitações normativas estão no
-[contrato congelado M5](docs/M5_PROTECTION.md).
+The binary format, failure model, limits, and normative limitations are defined in
+the [frozen M5 contract](docs/M5_PROTECTION.md).
 
-`keygen` publica cada arquivo atomicamente, mas não oferece uma transação da keypair
-inteira: `public.key` é publicado antes de `secret.key`. Se a segunda publicação
-falhar, a operação retorna erro e preserva a chave pública já publicada; o diretório
-parcial não é adotado nem sobrescrito em nova execução e exige tratamento manual.
-A limpeza dos stagings próprios é best-effort. Um resíduo público pós-commit também
-pode permanecer. Nesse erro não há `KeyGenerationOutcome`, portanto os avisos e o
-status do primeiro commit não são retornados separadamente. A garantia de ausência
-de publicação parcial refere-se ao conteúdo de cada arquivo, não ao par como transação.
+`keygen` publishes each file atomically, but does not provide a transaction for the
+keypair as a whole: `public.key` is published before `secret.key`. If the second
+publication fails, the operation returns an error and preserves the already published
+public key; the partial directory is neither adopted nor overwritten on a later run
+and requires manual handling. Cleanup of M2C-owned staging files is best-effort.
+A public residue after commit may also remain. In this error case there is no
+`KeyGenerationOutcome`, so warnings and the status of the first commit are not
+returned separately. The no-partial-publication guarantee applies to each individual
+file, not to the pair as a transaction.
 
-Durante `unprotect`, plaintext autenticado de frames anteriores pode existir no
-staging antes da autenticação do arquivo completo. Em retornos normais de erro,
-`Drop` tenta remover esse staging em best-effort. Encerramento abrupto do processo ou
-queda de energia antes do commit pode deixar `.m2c-m5-staging-*` contendo plaintext
-parcial, sem publicar o destino final. O destino só é publicado após autenticação
-completa e validação de tamanho. Cleanup/recovery de staging após crash e resume
-estão fora do M5; não há garantia adicional de proteção contra acesso local ao
-staging durante a operação ou após crash.
+During `unprotect`, authenticated plaintext from earlier frames may exist in staging
+before the complete file has been authenticated. On normal error returns, `Drop`
+attempts to remove that staging file on a best-effort basis. Abrupt process termination
+or power loss before commit can leave `.m2c-m5-staging-*` containing partial plaintext,
+without publishing the final destination. The destination is published only after
+complete authentication and size validation. Post-crash staging cleanup/recovery and
+resume are outside M5; there is no additional guarantee against local access to staging
+during the operation or after a crash.
 
 ## Roadmap
 
-- **M0 — fundação:** status e documentação honestos, módulos e contratos compatíveis com a arquitetura v0.1, CI local limpo.
-- **M1 — copybook compiler:** normalização fixed-format, parser do subconjunto, AST mínima, layout compilado, Arrow Schema e diagnósticos.
-- **M2 — codecs e Arrow:** CP037, DISPLAY, COMP/BINARY, COMP-3 e produção de `RecordBatch` tipado.
-- **M3 — Core MVP local:** source fixed-record, batches com memória limitada, CLI de conversão e escrita/validação de Parquet local.
-- **M4 — robustez e recuperação:** partes determinísticas, manifest, atomic commit, fault injection e retomada.
-- **M5 — proteção PQC experimental (implementado):** AEAD para o payload e ML-KEM para estabelecimento/proteção de chaves, com suíte fechada e versionada.
-- **M6 — evidência técnica e demo:** observabilidade local, fuzzing ampliado, benchmarks reproduzíveis e demonstração documentada.
-- **M7 — extensões opcionais:** sink de object storage/cloud, ML-DSA e novos formatos apenas depois da versão de portfólio local.
+- **M0 — foundation:** honest status and documentation, modules and contracts compatible with architecture v0.1, clean local CI.
+- **M1 — copybook compiler:** fixed-format normalization, subset parser, minimal AST, compiled layout, Arrow Schema, and diagnostics.
+- **M2 — codecs and Arrow:** CP037, DISPLAY, COMP/BINARY, COMP-3, and typed `RecordBatch` production.
+- **M3 — local Core MVP:** fixed-record source, bounded-memory batches, conversion CLI, and local Parquet writing/validation.
+- **M4 — robustness and recovery:** deterministic parts, manifest, atomic commit, fault injection, and resume.
+- **M5 — experimental PQC protection (implemented):** AEAD for the payload and ML-KEM for key establishment/protection, with a frozen versioned suite.
+- **M6 — technical evidence and demo:** local observability, expanded fuzzing, reproducible benchmarks, and documented demonstration.
+- **M7 — optional extensions:** object-storage/cloud sink, ML-DSA, and new formats only after the local portfolio version.
 
-O projeto não pretende implementar COBOL completo, substituir ferramentas IBM, criar um database engine ou oferecer infraestrutura enterprise.
+The project does not aim to implement complete COBOL, replace IBM tooling, create a database engine, or provide enterprise infrastructure.
 
-## Documentação
+## Documentation
 
-- [Arquitetura v0.1](docs/ARCHITECTURE.md)
-- [Subconjunto COBOL Copybook v0.1](docs/COPYBOOK_SUBSET.md)
-- [Decoding de registros M2](docs/DECODING.md)
-- [Recuperação local M4](docs/M4_RECOVERY.md)
-- [Proteção experimental M5](docs/M5_PROTECTION.md)
-- [Benchmarks e Desempenho](docs/BENCHMARKS.md)
-- [Validação Externa Spark/Cobrix](docs/EXTERNAL_COMPATIBILITY.md)
-- [Análise inicial do projeto](docs/ANALISE_DO_PROJETO.md)
+- [Architecture v0.1](docs/ARCHITECTURE.md)
+- [COBOL Copybook Subset v0.1](docs/COPYBOOK_SUBSET.md)
+- [M2 Record Decoding](docs/DECODING.md)
+- [M4 Local Recovery](docs/M4_RECOVERY.md)
+- [M5 Experimental Protection](docs/M5_PROTECTION.md)
+- [Benchmarks and Performance](docs/BENCHMARKS.md)
+- [External Spark/Cobrix Validation](docs/EXTERNAL_COMPATIBILITY.md)
+- [Initial Project Analysis](docs/ANALISE_DO_PROJETO.md)
 
-## Referências
+## References
 
 - [Apache Arrow](https://arrow.apache.org/)
 - [Apache Parquet](https://parquet.apache.org/)
