@@ -1,0 +1,116 @@
+[
+  {
+    "label": "cargo-version",
+    "arguments": [
+      "--version"
+    ],
+    "exit_code": 0,
+    "timed_out": false,
+    "skipped_lines": []
+  },
+  {
+    "label": "rustc-version",
+    "arguments": [
+      "-Vv"
+    ],
+    "exit_code": 0,
+    "timed_out": false,
+    "skipped_lines": []
+  },
+  {
+    "label": "fmt",
+    "arguments": [
+      "fmt",
+      "--all",
+      "--",
+      "--check"
+    ],
+    "exit_code": 0,
+    "timed_out": false,
+    "skipped_lines": []
+  },
+  {
+    "label": "clippy",
+    "arguments": [
+      "clippy",
+      "--all-targets",
+      "--all-features",
+      "--",
+      "-D",
+      "warnings"
+    ],
+    "exit_code": 0,
+    "timed_out": false,
+    "skipped_lines": []
+  },
+  {
+    "label": "tests-default",
+    "arguments": [
+      "test",
+      "--all-targets"
+    ],
+    "exit_code": 0,
+    "timed_out": false,
+    "skipped_lines": []
+  },
+  {
+    "label": "tests-pqc",
+    "arguments": [
+      "test",
+      "--all-targets",
+      "--all-features"
+    ],
+    "exit_code": 0,
+    "timed_out": false,
+    "skipped_lines": []
+  },
+  {
+    "label": "doc-default",
+    "arguments": [
+      "test",
+      "--doc"
+    ],
+    "exit_code": 0,
+    "timed_out": false,
+    "skipped_lines": []
+  },
+  {
+    "label": "doc-pqc",
+    "arguments": [
+      "test",
+      "--doc",
+      "--all-features"
+    ],
+    "exit_code": 0,
+    "timed_out": false,
+    "skipped_lines": []
+  },
+  {
+    "label": "protection-release",
+    "arguments": [
+      "test",
+      "--release",
+      "--test",
+      "protection",
+      "--all-features"
+    ],
+    "exit_code": 0,
+    "timed_out": false,
+    "skipped_lines": []
+  },
+  {
+    "label": "reparse-evidence",
+    "arguments": [
+      "test",
+      "--all-features",
+      "reparse_point_in_write_path_fails_closed",
+      "--",
+      "--nocapture"
+    ],
+    "exit_code": 0,
+    "timed_out": false,
+    "skipped_lines": [
+      "skipped reparse-point rejection: creating a test symlink is unavailable: O cliente não tem o privilégio necessário. (os error 1314)"
+    ]
+  }
+]

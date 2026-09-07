@@ -1,0 +1,65 @@
+@import "tailwindcss";
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-border: var(--border);
+  --color-elevated: var(--elevated);
+  --color-pass: var(--pass);
+  --color-warn: var(--warn);
+  --color-error: var(--error);
+  --font-sans: var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif;
+  --font-mono: var(--font-geist-mono), ui-monospace, monospace;
+  --radius-sm: calc(var(--radius) - 2px);
+  --radius-md: var(--radius);
+}
+
+:root {
+  color-scheme: dark;
+  --background: oklch(0.145 0.006 240);
+  --foreground: oklch(0.94 0.006 220);
+  --card: oklch(0.185 0.007 235);
+  --card-foreground: oklch(0.94 0.006 220);
+  --elevated: oklch(0.225 0.008 235);
+  --primary: oklch(0.79 0.095 195);
+  --primary-foreground: oklch(0.18 0.02 220);
+  --muted: oklch(0.24 0.004 240);
+  --muted-foreground: oklch(0.68 0.008 230);
+  --pass: oklch(0.74 0.13 155);
+  --warn: oklch(0.79 0.13 75);
+  --error: oklch(0.66 0.19 25);
+  --border: oklch(0.29 0.01 235);
+  --radius: 0.4rem;
+}
+
+@layer base {
+  * { @apply border-border; }
+  html { scroll-behavior: smooth; }
+  body { @apply bg-background text-foreground antialiased; min-width: 320px; }
+  button, a { @apply focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary; }
+  button { cursor: pointer; }
+  button:disabled { cursor: default; }
+  ::selection { background: color-mix(in oklch, var(--primary) 30%, transparent); }
+}
+
+@media (max-width: 639px) {
+  .grid-bg { background-size: 32px 32px; }
+}
+
+@utility grid-bg {
+  background-image:
+    linear-gradient(to right, color-mix(in oklch, var(--border) 45%, transparent) 1px, transparent 1px),
+    linear-gradient(to bottom, color-mix(in oklch, var(--border) 45%, transparent) 1px, transparent 1px);
+  background-size: 44px 44px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html { scroll-behavior: auto; }
+  *, *::before, *::after { animation-duration: 0.01ms !important; animation-iteration-count: 1 !important; transition-duration: 0.01ms !important; }
+}

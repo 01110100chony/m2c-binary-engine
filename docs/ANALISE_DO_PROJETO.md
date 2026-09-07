@@ -303,13 +303,6 @@ Parquet idêntico, enquanto qualquer alteração indevida é rejeitada.
 **Pronto quando:** o mesmo pipeline local envia um lote, retoma após falha e expõe
 métricas úteis sem revelar dados ou criar labels de cardinalidade ilimitada.
 
-### Marco 6 — AIOps experimental
-
-- baseline com tráfego conhecido;
-- sinais e hipóteses de anomalia claramente definidos;
-- avaliação de precisão/recall e falsos positivos;
-- integração desacoplada do caminho crítico do ETL.
-
 ## Lacunas de engenharia e documentação
 
 Ainda não existem:
@@ -343,8 +336,7 @@ impede o desenvolvimento.
    chaves de decriptação?
 6. A exigência é at-least-once idempotente ou existe razão real para exactly-once?
 7. Quais são as metas de throughput, tamanho de registro/batch e memória?
-8. O AIOps precisa apenas exportar sinais ou também deve implementar e avaliar um
-   detector?
+
 
 ## Conclusão
 

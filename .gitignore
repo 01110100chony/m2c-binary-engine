@@ -6,6 +6,7 @@
 *.log
 tmp/
 temp/
+scratch/external-cobol-test/cobrix_trxn_parquet/
 .DS_Store
 Thumbs.db
 Desktop.ini

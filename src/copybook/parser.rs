@@ -658,8 +658,16 @@ mod tests {
 
     #[test]
     fn deterministic_arbitrary_invalid_sources_never_panic() {
-        let mut state = 0x4d_32_43_u64;
-        for length in 0..256 {
+        let mut state = std::env::var("M6_TEST_SEED")
+            .ok()
+            .map(|s| s.parse().expect("seed integer"))
+            .unwrap_or(0x4d_32_43_u64);
+        let cases: usize = std::env::var("M6_TEST_CASES")
+            .ok()
+            .map(|s| s.parse().expect("cases integer"))
+            .unwrap_or(256);
+        for case in 0..cases {
+            let length = case % 256;
             let mut code = String::new();
             for _ in 0..length {
                 state = state
@@ -670,6 +678,10 @@ mod tests {
             }
             let source = fixed(&code);
             let result = catch_unwind(AssertUnwindSafe(|| parse_copybook(&source)));
+            if result.is_err() {
+                let dir = crate::m6_campaign::directory("parser-failure");
+                std::fs::write(dir.join("input.cpy"), &source).unwrap();
+            }
             assert!(result.is_ok(), "parser panicked for {code:?}");
         }
     }
